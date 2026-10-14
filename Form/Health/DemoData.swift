@@ -24,7 +24,8 @@ enum DemoData {
             let prevDay = cal.addDays(-1, to: wakeDay)
             let wd = cal.component(.weekday, from: wakeDay)
             let weekend = wd == 1 || wd == 7
-            let bedMin = (weekend ? 24 * 60 + 40 : 23 * 60 + 10) + rng.range(-35, 35)
+            let baseBed: Double = weekend ? 1480 : 1390
+            let bedMin: Double = baseBed + rng.range(-35, 35)
             let bed = prevDay.addingTimeInterval(bedMin * 60)
             var t = bed
             var segs: [SleepSegment] = []
@@ -76,7 +77,8 @@ enum DemoData {
         var rng = RNG(s: 9)
         let today = cal.dayStart(.now)
         return stride(from: 120, through: 0, by: -6).map { i in
-            Point(date: cal.addDays(-i, to: today), value: 51.4 + Double(120 - i) / 120 * 2.8 + rng.range(-0.3, 0.3))
+            let v: Double = 51.4 + Double(120 - i) / 120 * 2.8 + rng.range(-0.3, 0.3)
+            return Point(date: cal.addDays(-i, to: today), value: v)
         }
     }
 
@@ -124,10 +126,10 @@ enum DemoData {
             for k in 0..<n {
                 let f = Double(k) / Double(n - 1)
                 let a = f * 2 * .pi
-                let wobble = 1 + 0.12 * sin(a * 3) + rng.range(-0.004, 0.004)
-                let lat = centerLat + rLat * sin(a) * wobble
-                let lon = centerLon + rLon * (cos(a) - 1) * wobble
-                let alt = 480 + 9 * sin(a * 2) + rng.range(-0.4, 0.4)
+                let wobble: Double = 1 + 0.12 * sin(a * 3) + rng.range(-0.004, 0.004)
+                let lat: Double = centerLat + rLat * sin(a) * wobble
+                let lon: Double = centerLon + rLon * (cos(a) - 1) * wobble
+                let alt: Double = 480 + 9 * sin(a * 2) + rng.range(-0.4, 0.4)
                 det.route.append(CLLocation(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon), altitude: alt,
                                             horizontalAccuracy: 4, verticalAccuracy: 3,
                                             timestamp: item.start.addingTimeInterval(item.duration * f)))
@@ -142,7 +144,9 @@ enum DemoData {
         for k in 0..<n {
             let f = Double(k) / Double(max(1, n - 1))
             let warm = min(1, f * 6)
-            let bpm = avg * (0.82 + 0.18 * warm) + 6 * sin(f * 30) + rng.range(-2, 2)
+            let base: Double = avg * (0.82 + 0.18 * warm)
+            let wave: Double = 6 * sin(f * 30)
+            let bpm: Double = base + wave + rng.range(-2, 2)
             det.hr.append(HRPoint(date: item.start.addingTimeInterval(item.duration * f), bpm: bpm))
         }
         Analytics.fill(&det, item: item, maxHR: maxHR)
@@ -154,7 +158,9 @@ enum DemoData {
         let total = n.end.timeIntervalSince(n.start)
         return stride(from: 0.0, through: total, by: 300).map { t in
             let f = t / max(1, total)
-            let bpm = 57 - 14 * sin(min(1, f * 1.6) * .pi / 2) + 8 * max(0, f - 0.7) + rng.range(-1.5, 1.5)
+            let dip: Double = 14 * sin(min(1.0, f * 1.6) * Double.pi / 2)
+            let rise: Double = 8 * max(0.0, f - 0.7)
+            let bpm: Double = 57 - dip + rise + rng.range(-1.5, 1.5)
             return HRPoint(date: n.start.addingTimeInterval(t), bpm: bpm)
         }
     }

@@ -156,11 +156,14 @@ enum Analytics {
     // MARK: Belastung (0 bis 21)
 
     static func strain(_ workouts: [WorkoutItem], on day: Date, rhr: Double, maxHR: Double) -> Double {
-        let trimp = workouts.filter { cal.isDate($0.start, inSameDayAs: day) }.reduce(0.0) { acc, w in
-            let fallback = w.kind == .strength ? rhr + 0.45 * (maxHR - rhr) : rhr + 0.6 * (maxHR - rhr)
-            let hr = w.avgHR ?? fallback
-            let x = max(0, min(1, (hr - rhr) / max(1, maxHR - rhr)))
-            return acc + (w.duration / 60) * x * 0.64 * exp(1.92 * x)
+        let trimp = workouts.filter { cal.isDate($0.start, inSameDayAs: day) }.reduce(0.0) { (acc: Double, w: WorkoutItem) -> Double in
+            let share: Double = w.kind == .strength ? 0.45 : 0.6
+            let fallback: Double = rhr + share * (maxHR - rhr)
+            let hr: Double = w.avgHR ?? fallback
+            let x: Double = max(0, min(1, (hr - rhr) / max(1, maxHR - rhr)))
+            let minutes: Double = w.duration / 60
+            let load: Double = minutes * x * 0.64 * exp(1.92 * x)
+            return acc + load
         }
         return 21 * (1 - exp(-trimp / 120))
     }
@@ -192,7 +195,9 @@ enum Analytics {
         let eff = max(0, min(1, (n.efficiency - 0.75) / 0.2)) * 20
         var q = 14.0
         if n.hasStages, n.asleep > 0 {
-            q = (min(1, n.time(.deep) / n.asleep / 0.15) + min(1, n.time(.rem) / n.asleep / 0.21)) / 2 * 20
+            let deepShare: Double = min(1, n.time(.deep) / n.asleep / 0.15)
+            let remShare: Double = min(1, n.time(.rem) / n.asleep / 0.21)
+            q = (deepShare + remShare) / 2 * 20
         }
         var cons = 8.0
         let beds = recent.map { noonMinutes($0.bedTime) }
