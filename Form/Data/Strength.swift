@@ -48,33 +48,45 @@ enum Strength {
         e.sets.filter(\.done).map { "\(Fmt.num($0.weight, $0.weight.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1))×\($0.reps)" }.joined(separator: " · ")
     }
 
-    /// Neue Einheit aus einer Routine bauen, gesperrte Übungen automatisch ersetzen
-    static func makeSession(from routine: Routine, sessions: [StrengthSession], restrictions: Restrictions) -> StrengthSession {
-        var used = Set<String>()
-        var list: [SessionExercise] = []
+    /// Ordnet jeder Routine-Übung die tatsächlich gemachte zu: das Original, einen Ersatz oder nichts.
+    /// Ein Ersatz wird pro Einheit nur einmal vergeben und nie doppelt zu einer Übung, die schon in der Routine steht.
+    static func resolve(_ routine: Routine, restrictions: Restrictions) -> [(item: RoutineItem, original: Exercise, chosen: Exercise?)] {
+        let blocked = restrictions.blockedRegions
+        var used = Set(routine.items.compactMap { item -> String? in
+            guard let ex = ExerciseDB.find(item.exerciseId), !ExerciseDB.isBlocked(ex, by: blocked) else { return nil }
+            return ex.id
+        })
+        var out: [(item: RoutineItem, original: Exercise, chosen: Exercise?)] = []
         for item in routine.items {
             guard let ex = ExerciseDB.find(item.exerciseId) else { continue }
-            var chosen = ex
-            var replaced: String? = nil
-            if ExerciseDB.isBlocked(ex, by: restrictions.blockedRegions) {
-                let alts = ExerciseDB.alternatives(for: ex, avoiding: restrictions.blockedRegions).filter { !used.contains($0.id) }
-                guard let alt = alts.first else { continue }
-                chosen = alt
-                replaced = ex.id
+            if !ExerciseDB.isBlocked(ex, by: blocked) {
+                out.append((item, ex, ex))
+                continue
             }
-            used.insert(chosen.id)
-            let sug = suggestion(exerciseId: chosen.id, repMin: item.repMin, repMax: item.repMax, sessions: sessions)
-            let sets = (0..<item.sets).map { _ in SetEntry(weight: sug.weight, reps: sug.reps) }
-            list.append(SessionExercise(exerciseId: chosen.id, repMin: item.repMin, repMax: item.repMax, sets: sets, replaced: replaced))
+            let alt = ExerciseDB.alternatives(for: ex, avoiding: blocked).first { !used.contains($0.id) }
+            if let alt { used.insert(alt.id) }
+            out.append((item, ex, alt))
+        }
+        return out
+    }
+
+    /// Neue Einheit aus einer Routine bauen, gesperrte Übungen automatisch ersetzen
+    static func makeSession(from routine: Routine, sessions: [StrengthSession], restrictions: Restrictions) -> StrengthSession {
+        var list: [SessionExercise] = []
+        for r in resolve(routine, restrictions: restrictions) {
+            guard let chosen = r.chosen else { continue }
+            let sug = suggestion(exerciseId: chosen.id, repMin: r.item.repMin, repMax: r.item.repMax, sessions: sessions)
+            let sets = (0..<r.item.sets).map { _ in SetEntry(weight: sug.weight, reps: sug.reps) }
+            list.append(SessionExercise(exerciseId: chosen.id, repMin: r.item.repMin, repMax: r.item.repMax, sets: sets,
+                                        replaced: chosen.id == r.original.id ? nil : r.original.id))
         }
         return StrengthSession(routineId: routine.id, name: routine.name, start: .now, end: nil, exercises: list)
     }
 
     /// Was in einer Routine wegen Verletzung wegfällt
     static func blockedItems(_ routine: Routine, restrictions: Restrictions) -> [(Exercise, Exercise?)] {
-        routine.items.compactMap { item in
-            guard let ex = ExerciseDB.find(item.exerciseId), ExerciseDB.isBlocked(ex, by: restrictions.blockedRegions) else { return nil }
-            return (ex, ExerciseDB.alternatives(for: ex, avoiding: restrictions.blockedRegions).first)
+        resolve(routine, restrictions: restrictions).compactMap { r in
+            r.chosen?.id == r.original.id ? nil : (r.original, r.chosen)
         }
     }
 
