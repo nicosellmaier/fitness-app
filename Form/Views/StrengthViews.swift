@@ -214,10 +214,12 @@ struct SessionView: View {
         ScrollView {
             if let s = store.activeSession {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        StatTile(title: "Dauer", value: Fmt.clock(Date.now.timeIntervalSince(s.start)))
-                        StatTile(title: "Sätze", value: "\(s.doneSets)/\(s.exercises.reduce(0) { $0 + $1.sets.count })")
-                        StatTile(title: "Volumen", value: Fmt.num(s.volume / 1000, 2), unit: "t")
+                    TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                        HStack(spacing: 8) {
+                            StatTile(title: "Dauer", value: Fmt.clock(ctx.date.timeIntervalSince(s.start)))
+                            StatTile(title: "Sätze", value: "\(s.doneSets)/\(s.exercises.reduce(0) { $0 + $1.sets.count })")
+                            StatTile(title: "Volumen", value: Fmt.num(s.volume / 1000, 2), unit: "t")
+                        }
                     }
                     ForEach(Array(s.exercises.enumerated()), id: \.element.id) { i, _ in
                         ExerciseCard(ex: binding(i), onSetDone: { setIndex in setDone(i, setIndex) },
@@ -322,7 +324,7 @@ struct SessionView: View {
         let sug = Strength.suggestion(exerciseId: e.id, repMin: ex.repMin, repMax: ex.repMax, sessions: store.data.sessions)
         ex.replaced = ex.replaced ?? ex.exerciseId
         ex.exerciseId = e.id
-        ex.sets = ex.sets.map { SetEntry(weight: sug.weight, reps: sug.reps, done: false) }
+        ex.sets = ex.sets.map { _ in SetEntry(weight: sug.weight, reps: sug.reps, done: false) }
         store.activeSession?.exercises[i] = ex
         store.saveActiveSession()
     }

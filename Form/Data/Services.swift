@@ -84,6 +84,8 @@ final class RestTimer {
 
 enum Notifications {
     static func requestPermission() async {
+        // Bei Screenshot-Läufen keine Systemabfrage einblenden
+        if UserDefaults.standard.bool(forKey: "seedDemo") { return }
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
     }
 
