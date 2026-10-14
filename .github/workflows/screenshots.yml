@@ -40,17 +40,25 @@ jobs:
           xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
           mkdir -p shots
           shoot () {
-            xcrun simctl launch --terminate-running-process "$UDID" de.nicosellmaier.form -demo YES -startTab "$2" -shot "$3" > /dev/null
-            sleep 9
+            xcrun simctl launch --terminate-running-process "$UDID" de.nicosellmaier.form \
+              -demo YES -seedDemo YES -startTab "$2" -shot "$3" -trainingSeg "${4:-0}" > /dev/null
+            sleep 10
             xcrun simctl io "$UDID" screenshot "shots/$1.png"
           }
-          shoot 1-heute 0 none
-          shoot 2-training 1 none
-          shoot 3-ernaehrung 2 none
-          shoot 4-gesundheit 3 none
-          shoot 5-finanzen 4 none
-          shoot 6-schlaf 0 sleep
-          shoot 7-lauf 0 workout
+          shoot 01-heute 0 none
+          shoot 02-plan 1 none 0
+          shoot 03-kraft 1 none 1
+          shoot 04-aktivitaeten 1 none 2
+          shoot 05-ernaehrung 2 none
+          shoot 06-gesundheit 3 none
+          shoot 07-finanzen 4 none
+          shoot 08-schlaf 0 sleep
+          shoot 09-lauf 0 workout
+          shoot 10-einheit 0 run
+          shoot 11-krafteinheit 0 session
+          shoot 12-verletzung 0 injury
+          shoot 13-heute-verletzt 0 none
+          shoot 14-plan-verletzt 1 none 0
           ls -la shots
 
       - name: Auf Branch "screenshots" ablegen
