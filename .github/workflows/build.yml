@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode-Version
+        run: xcodebuild -version
+
+      - name: Projekt erzeugen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: App bauen (unsigniert)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Form.xcodeproj \
+            -scheme Form \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee build.log | grep -E "error:|warning: unre|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Fehler anzeigen
+        if: failure()
+        run: grep -E "error:" build.log | sort -u | head -80 || true
