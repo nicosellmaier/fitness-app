@@ -52,6 +52,10 @@ enum Fmt {
         d.formatted(Date.FormatStyle().weekday(.abbreviated).day().month(.abbreviated).locale(de))
     }
 
+    static func kg(_ w: Double) -> String {
+        num(w, w.truncatingRemainder(dividingBy: 1) == 0 ? 0 : (w * 10).truncatingRemainder(dividingBy: 1) == 0 ? 1 : 2)
+    }
+
     static func km(_ meters: Double) -> String {
         num(meters / 1000, meters >= 100_000 ? 1 : 2) + " km"
     }

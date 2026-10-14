@@ -23,7 +23,17 @@ final class HealthService {
     }
 
     func requestAccess() async throws {
-        try await store.requestAuthorization(toShare: [], read: readTypes)
+        try await store.requestAuthorization(toShare: [HKObjectType.workoutType()], read: readTypes)
+    }
+
+    func sum(_ id: HKQuantityTypeIdentifier, unit: HKUnit, from: Date, to: Date = .now) async throws -> Double {
+        let pred = HKQuery.predicateForSamples(withStart: from, end: to, options: [])
+        let d = HKStatisticsQueryDescriptor(predicate: .quantitySample(type: HKQuantityType(id), predicate: pred), options: .cumulativeSum)
+        return try await d.result(for: store)?.sumQuantity()?.doubleValue(for: unit) ?? 0
+    }
+
+    func latest(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int = 120) async throws -> Double? {
+        try await quantity(id, from: Calendar.current.addDays(-days, to: .now)).last?.quantity.doubleValue(for: unit)
     }
 
     func quantity(_ id: HKQuantityTypeIdentifier, from: Date, to: Date = .now) async throws -> [HKQuantitySample] {

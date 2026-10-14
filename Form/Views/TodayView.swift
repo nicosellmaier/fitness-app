@@ -1,8 +1,14 @@
 import SwiftUI
+import WorkoutKit
 
 struct TodayView: View {
     @Environment(AppModel.self) private var model
+    @Environment(DataStore.self) private var store
+    @Environment(\.switchTab) private var switchTab
+    @AppStorage("trainingSeg") private var trainingSeg = 0
     @State private var showSettings = false
+    @State private var showWatch = false
+    @State private var showPlanSetup = false
 
     var body: some View {
         NavigationStack {
@@ -12,6 +18,9 @@ struct TodayView: View {
                     Text(Fmt.day(.now)).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                     recoveryCard
                     statsRow
+                    restrictionBanner
+                    planSection
+                    nutritionSection
                     sleepSection
                     activitiesSection
                 }
@@ -28,7 +37,139 @@ struct TodayView: View {
                 }
             }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            .sheet(isPresented: $showPlanSetup) { PlanSetupView(existing: nil) }
         }
+    }
+
+    // MARK: Einschränkungen
+
+    @ViewBuilder private var restrictionBanner: some View {
+        let r = store.restrictions
+        if !r.isEmpty {
+            NavigationLink { InjuryView() } label: {
+                Hint(icon: r.trainingPaused ? "cross.case.fill" : "bandage.fill",
+                     title: r.trainingPaused ? "Krankheitsmodus aktiv" : "Eingeschränkt: " + r.reasons.joined(separator: ", "),
+                     text: restrictionText(r), color: Theme.bad)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func restrictionText(_ r: Restrictions) -> String {
+        if r.trainingPaused { return "Kein Training, bis du dich gesund meldest. Plan und Kraft sind pausiert." }
+        var parts: [String] = []
+        if !r.runAllowed { parts.append("Laufen wird durch Alternativtraining ersetzt") } else if r.runEasyOnly { parts.append("Nur lockere Läufe") }
+        if !r.blockedRegions.isEmpty { parts.append("Kraftübungen für \(r.blockedRegions.map(\.label).sorted().joined(separator: ", ")) werden ersetzt") }
+        return parts.joined(separator: ". ") + "."
+    }
+
+    // MARK: Plan
+
+    @ViewBuilder private var planSection: some View {
+        if let plan = store.data.plan {
+            let today = Calendar.current.startOfDay(for: .now)
+            let wd = Calendar.current.component(.weekday, from: today)
+            let strengthDay = plan.settings.strengthDays.contains(wd)
+            SectionHeader("Training heute", trailing: plan.phase(on: today)?.name)
+            if let run = plan.run(on: today) {
+                todayRun(run, plan)
+            } else {
+                Card {
+                    HStack(spacing: 12) {
+                        Image(systemName: strengthDay ? "dumbbell.fill" : "bed.double.fill").font(.title3).foregroundStyle(strengthDay ? Theme.warn : Theme.muted)
+                            .frame(width: 40)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(strengthDay ? "Krafttag" : "Ruhetag").font(.headline)
+                            Text(strengthDay ? "Kein Lauf geplant. Zeit für eine Kraftroutine." : "Kein Lauf geplant. Erholung ist Teil des Plans.")
+                                .font(.footnote).foregroundStyle(Theme.soft)
+                        }
+                    }
+                }
+            }
+            if strengthDay, plan.run(on: today) != nil, store.restrictions.strengthAllowed {
+                Button { trainingSeg = 1; switchTab(1) } label: {
+                    Hint(icon: "dumbbell.fill", title: "Heute zusätzlich Kraft", text: "Am besten nach dem Lauf oder mit 6 Stunden Abstand.", color: Theme.warn)
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            SectionHeader("Training heute")
+            Button { showPlanSetup = true } label: {
+                Hint(icon: "flag.checkered", title: "Noch kein Trainingsplan",
+                     text: "Ziel und Datum eingeben, die App baut den Plan und passt ihn jeden Tag an deine Erholung an.", color: Theme.accent)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func todayRun(_ run: PlannedRun, _ plan: TrainingPlan) -> some View {
+        let p = plan.paces
+        let km = p.totalMeters(run.structure) / 1000
+        return VStack(alignment: .leading, spacing: 12) {
+            NavigationLink { RunDetailView(runId: run.id) } label: {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: run.type.icon).font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                        .frame(width: 44, height: 44).background(run.type.color, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(run.title).font(.headline).multilineTextAlignment(.leading)
+                        if run.status == .done, let m = run.actualMeters, let s = run.actualSeconds {
+                            Text("Erledigt: \(Fmt.km(m)) in \(Fmt.clock(s))").font(.footnote.weight(.semibold)).foregroundStyle(Theme.good)
+                        } else if km > 0 && run.type != .cross {
+                            Text("\(Fmt.num(km, 1)) km · ca. \(Fmt.clock(p.totalSeconds(run.structure)))").font(.footnote).foregroundStyle(Theme.muted)
+                        }
+                        Text(run.purpose).font(.footnote).foregroundStyle(Theme.soft).multilineTextAlignment(.leading).lineLimit(3)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: run.status == .done ? "checkmark.circle.fill" : "chevron.right")
+                        .foregroundStyle(run.status == .done ? Theme.good : Theme.muted)
+                }
+            }
+            .buttonStyle(.plain)
+            if let a = run.adjusted {
+                Label(a, systemImage: "arrow.triangle.2.circlepath").font(.caption.weight(.semibold)).foregroundStyle(Theme.sleep)
+            }
+            if run.type.isQuality || run.type == .long, !run.structure.isEmpty {
+                StructureBar(structure: run.structure, paces: p, compact: true)
+            }
+            if run.status == .planned && run.type != .rest && !run.structure.isEmpty && WatchExport.isSupported {
+                Button { showWatch = true } label: {
+                    Label("An Apple Watch senden", systemImage: "applewatch").font(.subheadline.weight(.bold))
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .foregroundStyle(Theme.bg)
+                }
+                .workoutPreview(WatchExport.workoutPlan(for: run, paces: p), isPresented: $showWatch)
+            }
+        }
+        .padding(16)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+
+    // MARK: Ernährung
+
+    private var nutritionSection: some View {
+        let today = Calendar.current.startOfDay(for: .now)
+        let m = Macros.sum(store.entries(on: today))
+        let t = store.nutritionTargets(model: model, day: today)
+        return Button { switchTab(2) } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Ring(progress: m.kcal / max(1, t.kcal), color: Theme.accent, lineWidth: 7)
+                    Image(systemName: "fork.knife").font(.footnote.weight(.bold)).foregroundStyle(Theme.accent)
+                }
+                .frame(width: 46, height: 46)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(m.kcal > 0 ? "\(Fmt.num(m.kcal)) von \(Fmt.num(t.kcal)) kcal" : "Ziel heute \(Fmt.num(t.kcal)) kcal").font(.subheadline.weight(.bold))
+                    Text("Eiweiß \(Fmt.num(m.protein)) / \(Fmt.num(t.protein)) g" + (t.plannedBonus > 0 ? " · Trainingstag" : ""))
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
+            }
+            .padding(14)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private var recoveryCard: some View {

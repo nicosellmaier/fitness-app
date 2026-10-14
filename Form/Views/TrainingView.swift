@@ -4,6 +4,8 @@ import MapKit
 
 struct TrainingView: View {
     @Environment(AppModel.self) private var model
+    @Environment(DataStore.self) private var store
+    @AppStorage("trainingSeg") private var segment = 0
     @State private var filter = 0
 
     private var filtered: [WorkoutItem] {
@@ -18,19 +20,18 @@ struct TrainingView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    if model.usingDemo { DemoBanner() }
-                    weekCard
-                    Hint(icon: "calendar.badge.clock", title: "Trainingsplan kommt in Etappe 3",
-                         text: "Ziel und Datum eingeben, Plan wird erstellt, live angepasst und Intervalle laufen auf der Watch.",
-                         color: Theme.sleep)
-                    Picker("Filter", selection: $filter) {
-                        Text("Alle").tag(0)
-                        Text("Ausdauer").tag(1)
-                        Text("Kraft").tag(2)
+                    Picker("Bereich", selection: $segment) {
+                        Text("Plan").tag(0)
+                        Text("Kraft").tag(1)
+                        Text("Aktivitäten").tag(2)
                     }
                     .pickerStyle(.segmented)
-                    .padding(.top, 8)
-                    list
+                    restrictionBanner
+                    switch segment {
+                    case 0: PlanOverview()
+                    case 1: StrengthHomeView()
+                    default: activities
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -38,7 +39,43 @@ struct TrainingView: View {
             .screenBackground()
             .refreshable { await model.load() }
             .navigationTitle("Training")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink { InjuryView() } label: {
+                        Image(systemName: store.restrictions.isEmpty ? "bandage" : "bandage.fill")
+                            .foregroundStyle(store.restrictions.isEmpty ? Theme.text : Theme.bad)
+                    }
+                }
+            }
         }
+    }
+
+    @ViewBuilder private var restrictionBanner: some View {
+        let r = store.restrictions
+        if segment != 1, !r.isEmpty {
+            NavigationLink { InjuryView() } label: {
+                Hint(icon: r.trainingPaused ? "cross.case.fill" : "bandage.fill",
+                     title: r.trainingPaused ? "Krankheitsmodus" : r.runAllowed ? "Nur lockeres Laufen" : "Laufpause",
+                     text: r.trainingPaused ? "Training pausiert. Der Plan setzt aus und baut sich danach wieder auf."
+                        : r.runAllowed ? "Wegen \(r.reasons.joined(separator: ", ")) werden harte Einheiten durch lockere ersetzt."
+                        : "Wegen \(r.reasons.joined(separator: ", ")) gibt es Alternativtraining statt Laufen.",
+                     color: Theme.bad)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder private var activities: some View {
+        if model.usingDemo { DemoBanner() }
+        weekCard
+        Picker("Filter", selection: $filter) {
+            Text("Alle").tag(0)
+            Text("Ausdauer").tag(1)
+            Text("Kraft").tag(2)
+        }
+        .pickerStyle(.segmented)
+        .padding(.top, 8)
+        list
     }
 
     private var weekCard: some View {

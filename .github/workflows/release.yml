@@ -1,0 +1,105 @@
+name: TestFlight
+
+# Startet manuell unter Actions → TestFlight → Run workflow.
+# Braucht die Secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 und TEAM_ID (siehe docs/TESTFLIGHT.md).
+
+on:
+  workflow_dispatch:
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode wählen
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.4.app || true
+          xcodebuild -version
+
+      - name: Secrets prüfen
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          missing=""
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 TEAM_ID; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error title=Secrets fehlen::Bitte unter Settings → Secrets and variables → Actions anlegen:$missing"
+            exit 1
+          fi
+
+      - name: Projekt erzeugen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: API-Schlüssel ablegen
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          KEY="$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> $GITHUB_ENV
+
+      - name: Archiv bauen
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -project Form.xcodeproj -scheme Form -configuration Release \
+            -destination "generic/platform=iOS" -archivePath build/Form.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive 2>&1 | tee archive.log | grep -E "error:|warning: .*sign|ARCHIVE" || true
+          if [ ! -d build/Form.xcarchive ]; then
+            grep -E "error:" archive.log | sort -u | head -20 | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}' > errs.txt
+            echo "::error title=Archiv fehlgeschlagen::$(cat errs.txt)"
+            exit 1
+          fi
+
+      - name: Zu TestFlight hochladen
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+        run: |
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          set -o pipefail
+          xcodebuild -exportArchive -archivePath build/Form.xcarchive -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            2>&1 | tee export.log | tail -20
+          if grep -q "EXPORT FAILED\|error:" export.log; then
+            grep -E "error:|Error" export.log | sort -u | head -20 | awk 'BEGIN{ORS="%0A"} {print}' > errs.txt
+            echo "::error title=Upload fehlgeschlagen::$(cat errs.txt)"
+            exit 1
+          fi
+          echo "::notice title=Hochgeladen::Build ${{ github.run_number }} ist bei Apple. In 10 bis 30 Minuten erscheint er in TestFlight."
+
+      - name: Aufräumen
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"

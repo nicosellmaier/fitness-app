@@ -8,6 +8,8 @@ final class AppModel {
     var nights: [SleepNight] = []
     var workouts: [WorkoutItem] = []
     var vo2: [Point] = []
+    var activeKcalToday: Double = 0
+    var weightKg: Double?
     var loading = false
     var loaded = false
     var usingDemo = false
@@ -123,6 +125,8 @@ final class AppModel {
             let unit = HKUnit(from: "ml/kg*min")
             vo2 = vo.map { Point(date: $0.startDate, value: $0.quantity.doubleValue(for: unit)) }
             workouts = ws.map { health.item(from: $0) }
+            activeKcalToday = (try? await health.sum(.activeEnergyBurned, unit: .kilocalorie(), from: cal.dayStart(.now))) ?? 0
+            weightKg = try? await health.latest(.bodyMass, unit: .gramUnit(with: .kilo))
         } catch {
             errorText = error.localizedDescription
         }
@@ -135,5 +139,7 @@ final class AppModel {
         days = DemoData.days(nights: nights)
         vo2 = DemoData.vo2()
         workouts = DemoData.workouts()
+        activeKcalToday = 420
+        weightKg = nil
     }
 }

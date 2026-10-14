@@ -3,7 +3,9 @@ import WebKit
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(DataStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @State private var profile = Profile()
     @State private var maxHR: Double = 192
     @State private var sleepBase: Double = 8
     @State private var demo = false
@@ -13,10 +15,47 @@ struct SettingsView: View {
         NavigationStack {
             SwiftUI.Form {
                 Section {
+                    Picker("Geschlecht", selection: $profile.sex) {
+                        ForEach(Sex.allCases) { Text($0.label).tag($0) }
+                    }
+                    Stepper("Geburtsjahr: \(String(profile.birthYear))", value: $profile.birthYear, in: 1940...2015)
+                    Stepper("Größe: \(Int(profile.heightCm)) cm", value: $profile.heightCm, in: 140...215)
+                    Stepper("Gewicht: \(Fmt.num(profile.weightKg, 1)) kg", value: $profile.weightKg, in: 40...160, step: 0.5)
+                } header: {
+                    Text("Profil")
+                } footer: {
+                    if let w = model.weightKg {
+                        Text("Apple Health meldet \(Fmt.num(w, 1)) kg. Dieser Wert wird für die Ernährung bevorzugt.")
+                    } else {
+                        Text("Für Grundumsatz und Kalorienziel. Wiegst du dich mit einer Waage, die in Apple Health schreibt, nimmt die App automatisch den aktuellen Wert.")
+                    }
+                }
+                Section {
+                    Picker("Ziel", selection: $profile.goal) {
+                        ForEach(NutritionGoal.allCases) { Text($0.label).tag($0) }
+                    }
+                    Stepper("Eiweiß: \(Fmt.num(profile.proteinPerKg, 1)) g pro kg", value: $profile.proteinPerKg, in: 1.0...2.6, step: 0.1)
+                } header: {
+                    Text("Ernährung")
+                } footer: {
+                    Text("Abnehmen zieht 400 kcal ab, Muskelaufbau legt 250 kcal drauf. Für Ausdauer plus Kraft sind 1,6 bis 2,0 g Eiweiß pro kg sinnvoll.")
+                }
+                Section("Krafttraining") {
+                    Stepper("Satzpause: \(Fmt.clock(Double(profile.restSeconds)))", value: $profile.restSeconds, in: 30...300, step: 15)
+                    Toggle("Einheiten in Apple Health sichern", isOn: $profile.saveStrengthToHealth)
+                }
+                Section {
+                    Toggle("Erinnerung vor der Schlafenszeit", isOn: $profile.bedtimeReminder)
+                } header: {
+                    Text("Schlaf")
+                } footer: {
+                    Text("30 Minuten vor der Zeit, zu der du für deinen heutigen Schlafbedarf im Bett sein solltest.")
+                }
+                Section {
                     Stepper("Maximalpuls: \(Int(maxHR)) bpm", value: $maxHR, in: 150...220)
                     Stepper("Schlaf-Grundbedarf: \(Fmt.num(sleepBase, 1)) h", value: $sleepBase, in: 6...10, step: 0.25)
                 } header: {
-                    Text("Persönliche Werte")
+                    Text("Herz & Schlaf")
                 } footer: {
                     Text("Der Maximalpuls bestimmt die Herzfrequenz-Zonen und die Belastung. Am genauesten ist der höchste Wert aus einem harten Wettkampf oder Test.")
                 }
@@ -44,6 +83,13 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Fertig") {
+                        let wantsReminder = profile.bedtimeReminder && !store.data.profile.bedtimeReminder
+                        let p = profile
+                        store.update { $0.profile = p }
+                        if wantsReminder { Task { await Notifications.requestPermission() } }
+                        let need = model.needTonight
+                        Notifications.updateBedtime(enabled: p.bedtimeReminder, bedtime: Analytics.bedtime(nights: model.nights, need: need.total), need: need.total)
+                        WidgetBridge.update(model: model, store: store)
                         model.maxHR = maxHR
                         model.sleepBaseHours = sleepBase
                         let demoChanged = demo != model.forceDemo
@@ -54,6 +100,7 @@ struct SettingsView: View {
                 }
             }
             .onAppear {
+                profile = store.data.profile
                 maxHR = model.maxHR
                 sleepBase = model.sleepBaseHours
                 demo = model.forceDemo

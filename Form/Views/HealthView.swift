@@ -3,6 +3,7 @@ import Charts
 
 struct HealthView: View {
     @Environment(AppModel.self) private var model
+    @Environment(DataStore.self) private var store
 
     var body: some View {
         NavigationStack {
@@ -20,6 +21,8 @@ struct HealthView: View {
                     SectionHeader("Recovery-Verlauf", trailing: "14 Tage")
                     recoveryChart
                     warning
+                    SectionHeader("Verletzung & Krankheit")
+                    injuryLink
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -105,15 +108,42 @@ struct HealthView: View {
             let rhrHigh = (t.rhr ?? 0) - (rb?.mean ?? 999) > 4
             let tempHigh = (t.temp ?? 0) - (tb?.mean ?? 999) > 0.5
             if rhrHigh && tempHigh {
-                Hint(icon: "exclamationmark.triangle.fill", title: "Frühwarnung",
-                     text: "Ruhepuls und Temperatur sind gleichzeitig erhöht. Heute lieber locker oder Ruhetag, und beobachte, ob du krank wirst.",
-                     color: Theme.warn)
+                NavigationLink { InjuryView() } label: {
+                    Hint(icon: "exclamationmark.triangle.fill", title: "Frühwarnung",
+                         text: "Ruhepuls und Temperatur sind gleichzeitig erhöht. Heute lieber locker oder Ruhetag, und beobachte, ob du krank wirst. Fühlst du dich krank, aktiviere hier den Krankheitsmodus.",
+                         color: Theme.warn)
+                }
+                .buttonStyle(.plain)
             } else {
                 Hint(icon: "checkmark.shield.fill", title: "Keine Auffälligkeiten",
                      text: "Steigen Ruhepuls und Temperatur gleichzeitig, warnt dich die App, bevor du dich krank fühlst.",
                      color: Theme.good)
             }
         }
+    }
+}
+
+extension HealthView {
+    var injuryLink: some View {
+        let active = store.data.injuries.filter(\.active)
+        let ill = store.data.illness?.active == true
+        return NavigationLink { InjuryView() } label: {
+            HStack(spacing: 12) {
+                Image(systemName: active.isEmpty && !ill ? "figure.walk" : "bandage.fill").font(.title3.weight(.bold))
+                    .foregroundStyle(active.isEmpty && !ill ? Theme.good : Theme.bad).frame(width: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ill ? "Krankheitsmodus aktiv" : active.isEmpty ? "Alles fit" : active.map(\.title).joined(separator: ", "))
+                        .font(.subheadline.weight(.bold))
+                    Text(active.isEmpty && !ill ? "Verletzung oder Krankheit eintragen, Plan und Kraft passen sich an." : "Tippen zum Ändern oder Gesundmelden.")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
+            }
+            .padding(14)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
