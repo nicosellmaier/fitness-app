@@ -59,6 +59,7 @@ jobs:
           shoot 12-verletzung 0 injury
           shoot 13-heute-verletzt 0 none
           shoot 14-plan-verletzt 1 none 0
+          shoot 15-kraft-verletzt 1 none 1
           ls -la shots
 
       - name: Auf Branch "screenshots" ablegen

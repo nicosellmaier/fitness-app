@@ -150,14 +150,19 @@ struct Restrictions {
     var runEasyOnly = false
     var trainingPaused = false
     var strengthAllowed = true
+    /// Gründe, die das Laufen einschränken
     var reasons: [String] = []
+    /// Alle aktiven Verletzungen und Krankheiten
+    var allReasons: [String] = []
 
     var isEmpty: Bool { blockedRegions.isEmpty && runAllowed && !runEasyOnly && !trainingPaused }
+    var affectsRunning: Bool { !runAllowed || runEasyOnly || trainingPaused }
 
     static func from(injuries: [Injury], illness: Illness?) -> Restrictions {
         var r = Restrictions()
         for i in injuries where i.active {
             r.blockedRegions.insert(i.region)
+            r.allReasons.append(i.title)
             if i.region.affectsRunning {
                 if i.severity >= 2 { r.runAllowed = false } else { r.runEasyOnly = true }
                 r.reasons.append(i.title)
@@ -174,9 +179,11 @@ struct Restrictions {
                     r.runEasyOnly = true
                 }
                 r.reasons.append("Krankheit")
+                r.allReasons.append("Krankheit")
             } else if let res = ill.resolved, cal.dateComponents([.day], from: cal.startOfDay(for: res), to: cal.startOfDay(for: .now)).day ?? 99 < 3 {
                 r.runEasyOnly = true
                 r.reasons.append("Wiedereinstieg nach Krankheit")
+                r.allReasons.append("Wiedereinstieg nach Krankheit")
             }
         }
         return r

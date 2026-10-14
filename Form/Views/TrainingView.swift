@@ -52,7 +52,7 @@ struct TrainingView: View {
 
     @ViewBuilder private var restrictionBanner: some View {
         let r = store.restrictions
-        if segment != 1, !r.isEmpty {
+        if segment != 1, r.affectsRunning {
             NavigationLink { InjuryView() } label: {
                 Hint(icon: r.trainingPaused ? "cross.case.fill" : "bandage.fill",
                      title: r.trainingPaused ? "Krankheitsmodus" : r.runAllowed ? "Nur lockeres Laufen" : "Laufpause",

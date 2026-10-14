@@ -48,7 +48,7 @@ struct TodayView: View {
         if !r.isEmpty {
             NavigationLink { InjuryView() } label: {
                 Hint(icon: r.trainingPaused ? "cross.case.fill" : "bandage.fill",
-                     title: r.trainingPaused ? "Krankheitsmodus aktiv" : "Eingeschränkt: " + r.reasons.joined(separator: ", "),
+                     title: r.trainingPaused ? "Krankheitsmodus aktiv" : "Eingeschränkt: " + r.allReasons.joined(separator: ", "),
                      text: restrictionText(r), color: Theme.bad)
             }
             .buttonStyle(.plain)

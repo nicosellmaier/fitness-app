@@ -467,7 +467,7 @@ struct StepList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let w = structure.warmup { row("Einlaufen", w, repeats: nil) }
+            if let w = structure.warmup { row("Einlaufen " + amount(w), w, repeats: nil) }
             ForEach(Array(structure.blocks.enumerated()), id: \.offset) { _, b in
                 if b.repeats > 1 {
                     row(amount(b.work) + " " + b.work.zone.label, b.work, repeats: b.repeats)
@@ -476,7 +476,7 @@ struct StepList: View {
                     row(b.work.zone == .race || b.work.zone == .marathon ? "Tempoblock " + amount(b.work) : amount(b.work) + " " + b.work.zone.label, b.work, repeats: nil)
                 }
             }
-            if let c = structure.cooldown { row("Auslaufen", c, repeats: nil) }
+            if let c = structure.cooldown { row("Auslaufen " + amount(c), c, repeats: nil) }
         }
     }
 
