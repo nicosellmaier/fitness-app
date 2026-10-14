@@ -1,0 +1,65 @@
+name: Screenshots
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  shots:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[shots]')
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Projekt erzeugen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Simulator wählen und starten
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone 16 Pro') and 'Max' not in x['name']] or [x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]; print(c[-1]['udid'])")
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Für Simulator bauen
+        run: |
+          set -o pipefail
+          xcodebuild -project Form.xcodeproj -scheme Form -configuration Debug \
+            -destination "id=$UDID" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5
+
+      - name: Screenshots aufnehmen
+        run: |
+          xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/Form.app
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
+          mkdir -p shots
+          shoot () {
+            xcrun simctl launch --terminate-running-process "$UDID" de.nicosellmaier.form -demo YES -startTab "$2" -shot "$3" > /dev/null
+            sleep 9
+            xcrun simctl io "$UDID" screenshot "shots/$1.png"
+          }
+          shoot 1-heute 0 none
+          shoot 2-training 1 none
+          shoot 3-ernaehrung 2 none
+          shoot 4-gesundheit 3 none
+          shoot 5-finanzen 4 none
+          shoot 6-schlaf 0 sleep
+          shoot 7-lauf 0 workout
+          ls -la shots
+
+      - name: Auf Branch "screenshots" ablegen
+        run: |
+          cd shots
+          git init -q
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git checkout -q -b screenshots
+          git add .
+          git commit -qm "Screenshots ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots

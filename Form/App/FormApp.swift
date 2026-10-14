@@ -17,18 +17,24 @@ struct FormApp: App {
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var phase
+    @State private var tab = UserDefaults.standard.integer(forKey: "startTab")
+    private let shot = UserDefaults.standard.string(forKey: "shot") ?? ""
 
     var body: some View {
         Group {
             if model.needsAccess {
                 OnboardingView()
+            } else if shot == "sleep" {
+                NavigationStack { SleepView() }
+            } else if shot == "workout", let w = model.workouts.first(where: { $0.distance != nil }) {
+                NavigationStack { WorkoutDetailView(item: w) }
             } else {
-                TabView {
-                    TodayView().tabItem { Label("Heute", systemImage: "house.fill") }
-                    TrainingView().tabItem { Label("Training", systemImage: "figure.run") }
-                    NutritionPlaceholderView().tabItem { Label("Ernährung", systemImage: "fork.knife") }
-                    HealthView().tabItem { Label("Gesundheit", systemImage: "heart.fill") }
-                    FinanceView().tabItem { Label("Finanzen", systemImage: "creditcard.fill") }
+                TabView(selection: $tab) {
+                    TodayView().tabItem { Label("Heute", systemImage: "house.fill") }.tag(0)
+                    TrainingView().tabItem { Label("Training", systemImage: "figure.run") }.tag(1)
+                    NutritionPlaceholderView().tabItem { Label("Ernährung", systemImage: "fork.knife") }.tag(2)
+                    HealthView().tabItem { Label("Gesundheit", systemImage: "heart.fill") }.tag(3)
+                    FinanceView().tabItem { Label("Finanzen", systemImage: "creditcard.fill") }.tag(4)
                 }
             }
         }
