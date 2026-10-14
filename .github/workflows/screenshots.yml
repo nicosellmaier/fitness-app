@@ -15,6 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Neuestes Xcode wählen
+        run: |
+          XC=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          if [ -z "$XC" ]; then
+            echo "::error title=Kein Xcode 26::Apple verlangt Xcode 26 oder neuer. Vorhanden: $(ls -d /Applications/Xcode*.app | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XC"
+          echo "::notice::$(xcodebuild -version | tr '\n' ' ')"
+
       - name: Projekt erzeugen
         run: |
           brew install xcodegen
@@ -22,7 +32,20 @@ jobs:
 
       - name: Simulator wählen und starten
         run: |
-          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone 16 Pro') and 'Max' not in x['name']] or [x for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')]; print(c[-1]['udid'])")
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys, re
+          d = json.load(sys.stdin)['devices']
+          def ver(k):
+              m = re.search(r'iOS-(\d+)-(\d+)', k)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          best = None
+          for k in sorted((k for k in d if 'iOS' in k), key=ver):
+              pros = [x for x in d[k] if re.match(r'iPhone \d+ Pro$', x['name'])]
+              pros.sort(key=lambda x: int(re.search(r'\d+', x['name']).group()))
+              if pros: best = pros[-1]
+          print(best['udid'])
+          print(best['name'], file=sys.stderr)
+          ")
           echo "UDID=$UDID" >> $GITHUB_ENV
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
