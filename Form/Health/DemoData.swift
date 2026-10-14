@@ -122,7 +122,7 @@ enum DemoData {
         if let dist = item.distance, dist > 0 {
             // Schleife entlang der Wertach in Augsburg
             let centerLat = 48.3575, centerLon = 10.8745
-            let rLat = dist / 1000 * 0.00045, rLon = dist / 1000 * 0.0007
+            let rLat = dist / 1000 * 0.00142, rLon = dist / 1000 * 0.00213
             for k in 0..<n {
                 let f = Double(k) / Double(n - 1)
                 let a = f * 2 * .pi
