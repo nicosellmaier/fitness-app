@@ -140,7 +140,7 @@ enum DemoData {
         var t = start
         while t < .now {
             let h = Double(cal.component(.hour, from: t)) + Double(cal.component(.minute, from: t)) / 60
-            if (h > 7.5 && h < 8.2) || (h > 17.3 && h < 18) {
+            if (h >= 7.4 && h < 8.3) || (h >= 17.2 && h < 18.1) {
                 out.append(StepSample(start: t, end: t.addingTimeInterval(600), count: 1050))
             } else if h > 8 && h < 22 {
                 out.append(StepSample(start: t, end: t.addingTimeInterval(600), count: 60))

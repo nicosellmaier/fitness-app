@@ -81,7 +81,9 @@ export default {
     if (!upstream.ok) {
       let message = await upstream.text();
       try { message = JSON.parse(message).error?.message || message; } catch {}
-      return json({ error: message.slice(0, 500) }, upstream.status);
+      // 401/403 von Anthropic heißt: API-Schlüssel im Worker falsch. Nicht mit dem App-Token verwechseln.
+      const status = upstream.status === 401 || upstream.status === 403 ? 502 : upstream.status;
+      return json({ error: 'Claude API: ' + message.slice(0, 500) }, status);
     }
 
     // Server-Sent Events der Claude API unverändert an die App durchreichen

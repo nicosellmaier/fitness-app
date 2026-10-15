@@ -274,12 +274,13 @@ struct VitalStatus: Identifiable {
 }
 
 enum HealthMonitor {
-    /// Heutiger Wert gegen deinen 30-Tage-Bereich (Mittelwert ± 2 SD)
+    /// Heutiger Wert gegen deinen 30-Tage-Bereich (Mittelwert ± 2 SD). Auffällig ist nur die ungünstige Richtung.
     static func vitals(_ days: [DayMetrics]) -> [VitalStatus] {
         guard let i = days.indices.last else { return [] }
         let d = days[i]
         var out: [VitalStatus] = []
-        func add(_ name: String, _ icon: String, _ key: KeyPath<DayMetrics, Double?>, scale: Double, digits: Int, unit: String) {
+        /// direction: +1 = nur zu hoch ist auffällig, −1 = nur zu niedrig
+        func add(_ name: String, _ icon: String, _ key: KeyPath<DayMetrics, Double?>, scale: Double, digits: Int, unit: String, direction: Int) {
             guard let v = d[keyPath: key] else { return }
             let b = Analytics.baseline(days, before: i, key)
             var outside = false
@@ -287,16 +288,16 @@ enum HealthMonitor {
             if let b {
                 let sd = max(b.sd, key == \DayMetrics.temp ? 0.15 : 0.0001)
                 let lo = (b.mean - 2 * sd) * scale, hi = (b.mean + 2 * sd) * scale
-                outside = v * scale < lo || v * scale > hi
+                outside = direction > 0 ? v * scale > hi : v * scale < lo
                 range = Fmt.num(lo, digits) + "–" + Fmt.num(hi, digits) + " " + unit
             }
             out.append(VitalStatus(name: name, value: Fmt.num(v * scale, digits) + " " + unit, range: range, outside: outside, icon: icon))
         }
-        add("Herzfrequenzvariabilität", "waveform.path.ecg", \.hrv, scale: 1, digits: 0, unit: "ms")
-        add("Ruhepuls", "heart.fill", \.rhr, scale: 1, digits: 0, unit: "bpm")
-        add("Atemfrequenz", "lungs.fill", \.resp, scale: 1, digits: 1, unit: "/min")
-        add("Blutsauerstoff", "drop.fill", \.spo2, scale: 100, digits: 0, unit: "%")
-        add("Handgelenktemperatur", "thermometer.medium", \.temp, scale: 1, digits: 1, unit: "°C")
+        add("Herzfrequenzvariabilität", "waveform.path.ecg", \.hrv, scale: 1, digits: 0, unit: "ms", direction: -1)
+        add("Ruhepuls", "heart.fill", \.rhr, scale: 1, digits: 0, unit: "bpm", direction: 1)
+        add("Atemfrequenz", "lungs.fill", \.resp, scale: 1, digits: 1, unit: "/min", direction: 1)
+        add("Blutsauerstoff", "drop.fill", \.spo2, scale: 100, digits: 0, unit: "%", direction: -1)
+        add("Handgelenktemperatur", "thermometer.medium", \.temp, scale: 1, digits: 1, unit: "°C", direction: 1)
         return out
     }
 }

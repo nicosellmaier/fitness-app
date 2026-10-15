@@ -29,8 +29,22 @@ Eigene iOS-App, die Whoop, Strava, Runna, MyFitnessPal und Finanzguru ersetzt. A
 - Barcode-Scanner und Suche über Open Food Facts, Grundnahrungsmittel, eigene Lebensmittel, zuletzt gegessen, Mahlzeit von gestern übernehmen
 - Wochenübersicht
 
-**Gesundheit**
-- Trends für HRV, Ruhepuls, VO2max, Atemfrequenz, Recovery-Verlauf, Frühwarnung bei erhöhtem Ruhepuls und Temperatur
+**Gesundheit (alle Whoop-Funktionen, mit Apple-Watch-Daten)**
+- Erholung aus RMSSD (aus den Schlag-zu-Schlag-Daten der Nacht), Ruhepuls, Schlaf, Atemfrequenz und Temperatur
+- HRV-Trend: 7-Tage-Schnitt gegen persönlichen Normalbereich, steuert den Trainingsplan (HRV-gesteuertes Training)
+- Belastung 0–21 aus dem Puls über den ganzen Tag (Banister-TRIMP) plus muskulärer Last aus dem Krafttraining
+- Schlafregelmäßigkeit als Sleep Regularity Index
+- Stress-Monitor 0–3 und Atemübungen (zyklisches Seufzen, Resonanzatmung, Box-Atmung)
+- Gesundheitsmonitor: 5 Nachtwerte gegen deinen Bereich, Frühwarnung bei Infekten
+- Form-Alter und Tempo des Alterns aus 9 Faktoren mit Hazard Ratios aus großen Studien
+- Journal mit Auswertung, welches Verhalten deine Erholung verändert
+- Wochenziele für Aktivität, Kraft, Schritte und Schlaf
+
+**KI-Coach**
+- Chat über die Claude API mit all deinen Daten als Kontext, Tagesbriefing, Gedächtnis
+- Läuft über einen eigenen Cloudflare Worker, der API-Schlüssel kommt nie aufs iPhone ([Einrichtung](docs/KI-COACH.md))
+
+Formeln, Studien und Grenzen: [docs/WISSENSCHAFT.md](docs/WISSENSCHAFT.md)
 
 **Finanzen**
 - bindet die bestehende Finanz-Web-App ein
@@ -43,6 +57,7 @@ Eigene iOS-App, die Whoop, Strava, Runna, MyFitnessPal und Finanzguru ersetzt. A
 - `Form/` App (SwiftUI, iOS 17)
 - `FormWidgets/` Widget-Erweiterung mit Live Activity
 - `Shared/` Code, den App und Widgets teilen (Farben, Widget-Daten, Live-Activity-Typen)
+- `coach-worker/` Cloudflare Worker für den KI-Coach
 - Daten liegen als JSON in der App Group `group.de.nicosellmaier.form`
 
 ## Build

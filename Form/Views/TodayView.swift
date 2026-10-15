@@ -251,7 +251,7 @@ struct TodayView: View {
     private func deltaText(_ v: Double?, _ base: Double?, unit: String) -> String? {
         guard let v, let base else { return nil }
         let d = v - base
-        return (d >= 0 ? "+" : "−") + Fmt.num(abs(d)) + unit + " zum Schnitt"
+        return (d >= 0 ? "+" : "−") + Fmt.num(abs(d)) + unit + " vs. Ø"
     }
 
     @ViewBuilder private var sleepSection: some View {
