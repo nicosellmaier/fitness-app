@@ -83,6 +83,12 @@ jobs:
           shoot 13-heute-verletzt 0 none
           shoot 14-plan-verletzt 1 none 0
           shoot 15-kraft-verletzt 1 none 1
+          shoot 16-widgets 0 widgets
+          shoot 17-satzpause-vorschau 0 widgets2
+          shoot 18-satzpause-app 0 rest
+          xcrun simctl launch "$UDID" com.apple.Preferences > /dev/null
+          sleep 5
+          xcrun simctl io "$UDID" screenshot "shots/19-dynamic-island.png"
           ls -la shots
 
       - name: Auf Branch "screenshots" ablegen

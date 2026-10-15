@@ -33,6 +33,7 @@ extension EnvironmentValues {
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(DataStore.self) private var store
+    @Environment(RestTimer.self) private var timer
     @Environment(\.scenePhase) private var phase
     @State private var tab = UserDefaults.standard.integer(forKey: "startTab")
     private let shot = UserDefaults.standard.string(forKey: "shot") ?? ""
@@ -49,8 +50,14 @@ struct RootView: View {
                 NavigationStack { InjuryView() }
             } else if shot == "run", let r = store.data.plan?.runs.first(where: { $0.type == .intervals && $0.status == .planned }) {
                 NavigationStack { RunDetailView(runId: r.id) }
-            } else if shot == "session", store.activeSession != nil {
+            } else if shot == "session" || shot == "rest", store.activeSession != nil {
                 NavigationStack { SessionView() }
+                    .task {
+                        guard shot == "rest", !timer.running else { return }
+                        timer.start(seconds: 105, exercise: "Bankdrücken", nextSet: "Satz 3/3", target: "77,5 kg × 10", session: "Oberkörper")
+                    }
+            } else if shot == "widgets" || shot == "widgets2" {
+                NavigationStack { WidgetGallery(page: shot == "widgets" ? 0 : 1) }
             } else {
                 TabView(selection: $tab) {
                     TodayView().tabItem { Label("Heute", systemImage: "house.fill") }.tag(0)

@@ -70,7 +70,7 @@ enum DemoSeed {
             store.update { $0.entries += list }
         }
 
-        if shot == "session", store.activeSession == nil, let r = store.data.routines.first {
+        if shot == "session" || shot == "rest", store.activeSession == nil, let r = store.data.routines.first {
             var s = Strength.makeSession(from: r, sessions: store.data.sessions, restrictions: store.restrictions)
             s.start = Date.now.addingTimeInterval(-14 * 60)
             for i in s.exercises.indices.prefix(2) {

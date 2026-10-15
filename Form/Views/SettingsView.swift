@@ -59,6 +59,14 @@ struct SettingsView: View {
                 } footer: {
                     Text("Der Maximalpuls bestimmt die Herzfrequenz-Zonen und die Belastung. Am genauesten ist der höchste Wert aus einem harten Wettkampf oder Test.")
                 }
+                Section {
+                    NavigationLink("Widgets und Dynamic Island") { WidgetGallery(page: 0) }
+                    NavigationLink("Satzpause-Vorschau") { WidgetGallery(page: 1) }
+                } header: {
+                    Text("Vorschau")
+                } footer: {
+                    Text("So sehen die Widgets mit deinen aktuellen Daten aus. Hinzufügen: Home-Bildschirm lange drücken, dann + und Form.")
+                }
                 Section("Daten") {
                     Button("Zugriff auf Apple Health erneut anfragen") { Task { await model.requestAccess() } }
                     Toggle("Beispieldaten anzeigen", isOn: $demo)

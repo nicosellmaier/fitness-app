@@ -119,6 +119,11 @@ enum Notifications {
 
 enum WidgetBridge {
     static func update(model: AppModel, store: DataStore) {
+        make(model: model, store: store).save()
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    static func make(model: AppModel, store: DataStore) -> WidgetSnapshot {
         var s = WidgetSnapshot()
         s.demo = model.usingDemo
         if let r = model.recoveryToday {
@@ -171,7 +176,6 @@ enum WidgetBridge {
                 s.phase = "\(ph.name) · Woche \(n)"
             }
         }
-        s.save()
-        WidgetCenter.shared.reloadAllTimelines()
+        return s
     }
 }
