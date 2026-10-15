@@ -70,6 +70,30 @@ enum DemoSeed {
             store.update { $0.entries += list }
         }
 
+        if store.data.journal.isEmpty {
+            let rec = model.recoveryByDay
+            let sorted = rec.values.sorted()
+            if !sorted.isEmpty {
+                let low = sorted[sorted.count * 3 / 10], mid = sorted[sorted.count / 2]
+                var rng = DemoData.RNG(s: 99)
+                var journal: [String: [String: Bool]] = [:]
+                for back in 2..<80 {
+                    let day = cal.addDays(-back, to: today)
+                    guard let r = rec[cal.addDays(1, to: day)] else { continue }
+                    var a: [String: Bool] = [:]
+                    a["alcohol"] = r < low ? rng.next() < 0.8 : rng.next() < 0.1
+                    a["screen_bed"] = r < mid ? rng.next() < 0.7 : rng.next() < 0.35
+                    a["caffeine_late"] = rng.next() < 0.3
+                    a["mobility"] = r > mid ? rng.next() < 0.6 : rng.next() < 0.3
+                    a["hydrated"] = rng.next() < 0.7
+                    a["stress"] = rng.next() < 0.35
+                    a["reading"] = r > mid ? rng.next() < 0.55 : rng.next() < 0.25
+                    journal[JournalBehavior.key(day)] = a
+                }
+                store.update { $0.journal = journal }
+            }
+        }
+
         if shot == "session" || shot == "rest", store.activeSession == nil, let r = store.data.routines.first {
             var s = Strength.makeSession(from: r, sessions: store.data.sessions, restrictions: store.restrictions)
             s.start = Date.now.addingTimeInterval(-14 * 60)

@@ -71,7 +71,8 @@ enum Analytics {
     // MARK: Tageswerte
 
     static func days(count: Int, nights: [SleepNight], hrv: [HKQuantitySample], rhr: [HKQuantitySample],
-                     resp: [HKQuantitySample], spo2: [HKQuantitySample], temp: [HKQuantitySample]) -> [DayMetrics] {
+                     resp: [HKQuantitySample], spo2: [HKQuantitySample], temp: [HKQuantitySample],
+                     rmssd: [(date: Date, ms: Double)] = [], steps: [Date: Double] = [:], exercise: [Date: Double] = [:]) -> [DayMetrics] {
         let today = cal.dayStart(.now)
         var out: [DayMetrics] = []
         let nightBy = Dictionary(nights.map { ($0.wakeDay, $0) }, uniquingKeysWith: { a, _ in a })
@@ -93,6 +94,12 @@ enum Analytics {
             m.spo2 = mean(sp)
             m.spo2Min = sp.min()
             m.temp = temp.filter { cal.isDate($0.endDate, inSameDayAs: day) }.last?.quantity.doubleValue(for: .degreeCelsius())
+            if n != nil {
+                let r = rmssd.filter { $0.date >= a && $0.date < b }.map(\.ms).sorted()
+                if r.count >= 2 { m.rmssd = r[r.count / 2] }
+            }
+            m.steps = steps[day]
+            m.exerciseMin = exercise[day]
             out.append(m)
         }
         return out
@@ -122,7 +129,12 @@ enum Analytics {
         var hrvDelta: Double?
         var rhrDelta: Double?
         let prev = days[max(0, i - 30)..<i]
-        if let h = d.hrv, let b = meanSD(prev.compactMap { $0.hrv.map { log($0) } }) {
+        // RMSSD aus Schlag-zu-Schlag-Daten bevorzugen, sonst Apples SDNN. Baseline immer mit derselben Größe.
+        let rmssdBase = prev.compactMap { $0.rmssd.map { log($0) } }
+        let useR = d.rmssd != nil && rmssdBase.count >= 7
+        let hrvToday: Double? = useR ? d.rmssd : d.hrv
+        let hrvBase: [Double] = useR ? rmssdBase : prev.compactMap { $0.hrv.map { log($0) } }
+        if let h = hrvToday, let b = meanSD(hrvBase) {
             let z = max(-3, min(3, (log(h) - b.mean) / b.sd))
             score += 13 * z
             hrvDelta = h - exp(b.mean)
@@ -143,6 +155,10 @@ enum Analytics {
             let z = (rr - b.mean) / b.sd
             if z > 1.5 { score -= 6 * (z - 1); parts.append("Atemfrequenz erhöht") }
         }
+        if let t = d.temp, let b = baseline(days, before: i, \.temp) {
+            let dev = t - b.mean
+            if dev > 0.4 { score -= min(12, 20 * (dev - 0.3)); parts.append("Temperatur erhöht") }
+        }
         let sc = Int(max(1, min(99, score.rounded())))
         let label: String
         let color: Color
@@ -155,25 +171,7 @@ enum Analytics {
 
     // MARK: Belastung (0 bis 21)
 
-    static func strain(_ workouts: [WorkoutItem], on day: Date, rhr: Double, maxHR: Double) -> Double {
-        let trimp = workouts.filter { cal.isDate($0.start, inSameDayAs: day) }.reduce(0.0) { (acc: Double, w: WorkoutItem) -> Double in
-            let share: Double = w.kind == .strength ? 0.45 : 0.6
-            let fallback: Double = rhr + share * (maxHR - rhr)
-            let hr: Double = w.avgHR ?? fallback
-            let x: Double = max(0, min(1, (hr - rhr) / max(1, maxHR - rhr)))
-            let minutes: Double = w.duration / 60
-            let load: Double = minutes * x * 0.64 * exp(1.92 * x)
-            return acc + load
-        }
-        return 21 * (1 - exp(-trimp / 120))
-    }
-
-    static func strainTarget(_ r: Recovery?) -> ClosedRange<Double> {
-        guard let r else { return 8...14 }
-        if r.score >= 67 { return 14...18 }
-        if r.score >= 34 { return 10...14 }
-        return 0...10
-    }
+    static func strainTarget(_ r: Recovery?) -> ClosedRange<Double> { Strain.target(r) }
 
     // MARK: Schlafbedarf und -score
 
@@ -208,11 +206,9 @@ enum Analytics {
         return Int(max(0, min(100, (dur + eff + q + cons).rounded())))
     }
 
+    /// Schlafregelmäßigkeit als Sleep Regularity Index der letzten 7 Tage
     static func consistency(_ nights: [SleepNight]) -> Int? {
-        let beds = nights.suffix(14).map { noonMinutes($0.bedTime) }
-        let wakes = nights.suffix(14).map { noonMinutes($0.end) }
-        guard let b = meanSD(beds), let w = meanSD(wakes) else { return nil }
-        return Int(max(0, min(100, 100 - (b.sd + w.sd) / 2 * 0.9)).rounded())
+        SleepRegularity.sri(nights, days: 7).map { Int(max(0, $0).rounded()) }
     }
 
     static func bedtime(nights: [SleepNight], need: TimeInterval) -> Date? {

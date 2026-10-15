@@ -75,6 +75,10 @@ struct DayMetrics: Identifiable {
     var spo2Min: Double? = nil
     var temp: Double? = nil
     var sleep: SleepNight? = nil
+    /// RMSSD aus Schlag-zu-Schlag-Reihen im Schlaf (ms)
+    var rmssd: Double? = nil
+    var steps: Double? = nil
+    var exerciseMin: Double? = nil
 }
 
 struct Point: Identifiable {

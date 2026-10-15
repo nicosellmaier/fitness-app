@@ -56,6 +56,16 @@ struct RootView: View {
                         guard shot == "rest", !timer.running else { return }
                         timer.start(seconds: 105, exercise: "Bankdrücken", nextSet: "Satz 3/3", target: "77,5 kg × 10", session: "Oberkörper")
                     }
+            } else if shot == "healthspan" {
+                NavigationStack { HealthspanView() }
+            } else if shot == "stress" {
+                NavigationStack { StressView() }
+            } else if shot == "journal" {
+                NavigationStack { JournalView(day: Calendar.current.addDays(-1, to: Calendar.current.startOfDay(for: .now))) }
+            } else if shot == "coach" {
+                CoachView()
+            } else if shot == "strain" {
+                NavigationStack { StrainDetailView() }
             } else if shot == "widgets" || shot == "widgets2" {
                 NavigationStack { WidgetGallery(page: shot == "widgets" ? 0 : 1) }
             } else {
@@ -75,11 +85,22 @@ struct RootView: View {
         }
         .onChange(of: store.data.injuries) { _, _ in afterChange() }
         .onChange(of: store.data.illness) { _, _ in afterChange() }
+        .onChange(of: store.data.sessions.count) { _, _ in syncModel() }
+        .onChange(of: store.data.profile.birthYear) { _, _ in syncModel() }
+        .onChange(of: store.data.profile.sex) { _, _ in syncModel() }
     }
 
     /// Health-Daten laden, Plan live anpassen, Widgets und Erinnerungen aktualisieren
     @MainActor
+    private func syncModel() {
+        model.sessions = store.data.sessions
+        model.female = store.data.profile.sex == .female
+        model.birthYear = store.data.profile.birthYear
+    }
+
+    @MainActor
     private func refresh() async {
+        syncModel()
         await model.load()
         guard model.loaded, !model.needsAccess else { return }
         if UserDefaults.standard.bool(forKey: "seedDemo") { DemoSeed.seed(store: store, model: model, shot: shot) }
@@ -88,10 +109,12 @@ struct RootView: View {
 
     @MainActor
     private func afterChange() {
+        syncModel()
         if var plan = store.data.plan {
             let before = plan.log.count
             let snapshot = try? JSONEncoder().encode(plan.runs)
-            PlanAdapter.adapt(&plan, workouts: model.workouts, recovery: model.recoveryToday, restrictions: store.restrictions)
+            PlanAdapter.adapt(&plan, workouts: model.workouts, recovery: model.recoveryToday, restrictions: store.restrictions,
+                              hrvLow: model.hrvTrend?.state == .below)
             if plan.log.count != before || (try? JSONEncoder().encode(plan.runs)) != snapshot || plan.vdot != store.data.plan?.vdot {
                 let p = plan
                 store.update { $0.plan = p }

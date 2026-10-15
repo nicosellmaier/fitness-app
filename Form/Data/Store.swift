@@ -190,6 +190,50 @@ struct Restrictions {
     }
 }
 
+// MARK: Journal
+
+struct JournalBehavior: Identifiable, Codable, Hashable {
+    var id: String
+    var label: String
+    var icon: String
+    var question: String
+    var custom = false
+
+    static let defaults: [JournalBehavior] = [
+        JournalBehavior(id: "alcohol", label: "Alkohol", icon: "wineglass", question: "Alkohol getrunken?"),
+        JournalBehavior(id: "caffeine_late", label: "Koffein nach 14 Uhr", icon: "cup.and.saucer", question: "Koffein nach 14 Uhr?"),
+        JournalBehavior(id: "late_meal", label: "Spät gegessen", icon: "fork.knife", question: "Weniger als 2 Stunden vor dem Schlafen gegessen?"),
+        JournalBehavior(id: "screen_bed", label: "Handy im Bett", icon: "iphone", question: "Im Bett noch aufs Handy geschaut?"),
+        JournalBehavior(id: "stress", label: "Stressiger Tag", icon: "brain.head.profile", question: "War der Tag stressig?"),
+        JournalBehavior(id: "sick", label: "Krankheitsgefühl", icon: "allergens", question: "Krank oder angeschlagen gefühlt?"),
+        JournalBehavior(id: "hydrated", label: "Genug getrunken", icon: "drop", question: "Mindestens 2 Liter Wasser?"),
+        JournalBehavior(id: "mobility", label: "Dehnen / Mobility", icon: "figure.flexibility", question: "Gedehnt oder Mobility gemacht?"),
+        JournalBehavior(id: "sauna", label: "Sauna", icon: "flame", question: "In der Sauna gewesen?"),
+        JournalBehavior(id: "reading", label: "Gelesen vorm Schlafen", icon: "book", question: "Vor dem Schlafen gelesen statt Bildschirm?"),
+    ]
+
+    static let fmt: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    static func key(_ d: Date) -> String { fmt.string(from: d) }
+    static func date(_ k: String) -> Date? { fmt.date(from: k) }
+}
+
+// MARK: KI-Coach
+
+struct CoachMessage: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var role: String        // "user" oder "assistant"
+    var text: String
+    var date: Date = .now
+}
+
 // MARK: Gesamte gespeicherte Daten
 
 struct AppData: Codable {
@@ -203,8 +247,18 @@ struct AppData: Codable {
     var foods: [FoodItem] = []
     var entries: [FoodEntry] = []
     var seeded = false
+    /// Tag (yyyy-MM-dd) → Verhalten → ja/nein
+    var journal: [String: [String: Bool]] = [:]
+    var customBehaviors: [JournalBehavior] = []
+    var hiddenBehaviors: [String] = []
+    var coachMemory: [String] = []
+    var coachHistory: [CoachMessage] = []
 
     init() {}
+
+    var behaviors: [JournalBehavior] {
+        (JournalBehavior.defaults + customBehaviors).filter { !hiddenBehaviors.contains($0.id) }
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -218,6 +272,11 @@ struct AppData: Codable {
         foods = (try? c.decodeIfPresent([FoodItem].self, forKey: .foods)) ?? []
         entries = (try? c.decodeIfPresent([FoodEntry].self, forKey: .entries)) ?? []
         seeded = (try? c.decodeIfPresent(Bool.self, forKey: .seeded)) ?? false
+        journal = (try? c.decodeIfPresent([String: [String: Bool]].self, forKey: .journal)) ?? [:]
+        customBehaviors = (try? c.decodeIfPresent([JournalBehavior].self, forKey: .customBehaviors)) ?? []
+        hiddenBehaviors = (try? c.decodeIfPresent([String].self, forKey: .hiddenBehaviors)) ?? []
+        coachMemory = (try? c.decodeIfPresent([String].self, forKey: .coachMemory)) ?? []
+        coachHistory = (try? c.decodeIfPresent([CoachMessage].self, forKey: .coachHistory)) ?? []
     }
 }
 

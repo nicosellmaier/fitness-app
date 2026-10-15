@@ -11,19 +11,20 @@ final class HealthService {
     static let ms = HKUnit.secondUnit(with: .milli)
 
     var readTypes: Set<HKObjectType> {
-        var s: Set<HKObjectType> = [HKCategoryType(.sleepAnalysis), HKObjectType.workoutType(), HKSeriesType.workoutRoute()]
+        var s: Set<HKObjectType> = [HKCategoryType(.sleepAnalysis), HKCategoryType(.mindfulSession), HKObjectType.workoutType(),
+                                    HKSeriesType.workoutRoute(), HKSeriesType.heartbeat()]
         let ids: [HKQuantityTypeIdentifier] = [
             .heartRateVariabilitySDNN, .restingHeartRate, .heartRate, .respiratoryRate, .oxygenSaturation,
             .appleSleepingWristTemperature, .vo2Max, .activeEnergyBurned, .basalEnergyBurned,
             .distanceWalkingRunning, .stepCount, .bodyMass, .runningPower, .runningGroundContactTime,
-            .runningVerticalOscillation, .runningStrideLength, .runningSpeed,
+            .runningVerticalOscillation, .runningStrideLength, .runningSpeed, .appleExerciseTime, .leanBodyMass, .height,
         ]
         for id in ids { s.insert(HKQuantityType(id)) }
         return s
     }
 
     func requestAccess() async throws {
-        try await store.requestAuthorization(toShare: [HKObjectType.workoutType()], read: readTypes)
+        try await store.requestAuthorization(toShare: [HKObjectType.workoutType(), HKCategoryType(.mindfulSession)], read: readTypes)
     }
 
     func sum(_ id: HKQuantityTypeIdentifier, unit: HKUnit, from: Date, to: Date = .now) async throws -> Double {
@@ -34,6 +35,73 @@ final class HealthService {
 
     func latest(_ id: HKQuantityTypeIdentifier, unit: HKUnit, days: Int = 120) async throws -> Double? {
         try await quantity(id, from: Calendar.current.addDays(-days, to: .now)).last?.quantity.doubleValue(for: unit)
+    }
+
+    /// Tagessummen, z.B. Schritte oder Trainingsminuten
+    func dailySums(_ id: HKQuantityTypeIdentifier, unit: HKUnit, from: Date) async throws -> [Date: Double] {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: from)
+        let pred = HKQuery.predicateForSamples(withStart: start, end: .now, options: [])
+        let d = HKStatisticsCollectionQueryDescriptor(
+            predicate: .quantitySample(type: HKQuantityType(id), predicate: pred),
+            options: .cumulativeSum, anchorDate: start, intervalComponents: DateComponents(day: 1))
+        let coll = try await d.result(for: store)
+        var out: [Date: Double] = [:]
+        coll.enumerateStatistics(from: start, to: .now) { st, _ in
+            if let v = st.sumQuantity()?.doubleValue(for: unit) { out[cal.startOfDay(for: st.startDate)] = v }
+        }
+        return out
+    }
+
+    /// RMSSD in Millisekunden aus den Schlag-zu-Schlag-Reihen der Watch, nur innerhalb der Schlaffenster
+    func rmssd(windows: [(start: Date, end: Date)]) async throws -> [(date: Date, ms: Double)] {
+        guard let from = windows.map(\.start).min(), let to = windows.map(\.end).max() else { return [] }
+        let pred = HKQuery.predicateForSamples(withStart: from, end: to, options: [])
+        let d = HKSampleQueryDescriptor(
+            predicates: [.sample(type: HKSeriesType.heartbeat(), predicate: pred)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let series = try await d.result(for: store).compactMap { $0 as? HKHeartbeatSeriesSample }
+            .filter { s in windows.contains { s.startDate >= $0.start && s.startDate <= $0.end } }
+        var out: [(date: Date, ms: Double)] = []
+        for s in series {
+            let beats = (try? await heartbeats(of: s)) ?? []
+            if let v = HRVMath.rmssd(beats: beats) { out.append((s.startDate, v)) }
+        }
+        return out
+    }
+
+    private func heartbeats(of sample: HKHeartbeatSeriesSample) async throws -> [(t: Double, gap: Bool)] {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<[(t: Double, gap: Bool)], Error>) in
+            let collector = BeatCollector()
+            let q = HKHeartbeatSeriesQuery(heartbeatSeries: sample) { _, time, gap, done, error in
+                if collector.finished { return }
+                if let error {
+                    collector.finished = true
+                    cont.resume(throwing: error)
+                    return
+                }
+                collector.items.append((time, gap))
+                if done {
+                    collector.finished = true
+                    cont.resume(returning: collector.items)
+                }
+            }
+            store.execute(q)
+        }
+    }
+
+    func heartRate(from: Date, to: Date = .now) async throws -> [HRPoint] {
+        try await quantity(.heartRate, from: from, to: to).map { HRPoint(date: $0.startDate, bpm: $0.quantity.doubleValue(for: HealthService.bpm)) }
+    }
+
+    func stepSamples(from: Date) async throws -> [StepSample] {
+        try await quantity(.stepCount, from: from).map { StepSample(start: $0.startDate, end: $0.endDate, count: $0.quantity.doubleValue(for: .count())) }
+    }
+
+    func saveMindful(start: Date, end: Date) async {
+        let s = HKCategorySample(type: HKCategoryType(.mindfulSession), value: HKCategoryValue.notApplicable.rawValue, start: start, end: end)
+        try? await store.save(s)
     }
 
     func quantity(_ id: HKQuantityTypeIdentifier, from: Date, to: Date = .now) async throws -> [HKQuantitySample] {
@@ -134,6 +202,11 @@ final class HealthService {
         Analytics.fill(&det, item: item, maxHR: maxHR)
         return det
     }
+}
+
+private final class BeatCollector {
+    var items: [(t: Double, gap: Bool)] = []
+    var finished = false
 }
 
 private final class LocationCollector {

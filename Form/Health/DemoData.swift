@@ -52,23 +52,100 @@ enum DemoData {
         return out
     }
 
-    static func days(nights: [SleepNight]) -> [DayMetrics] {
+    static func days(nights: [SleepNight], steps: [Date: Double] = [:], exercise: [Date: Double] = [:]) -> [DayMetrics] {
         var rng = RNG(s: 7)
         let byDay = Dictionary(nights.map { ($0.wakeDay, $0) }, uniquingKeysWith: { a, _ in a })
         let today = cal.dayStart(.now)
         var out: [DayMetrics] = []
-        for i in stride(from: 39, through: 0, by: -1) {
+        for i in stride(from: 89, through: 0, by: -1) {
             let day = cal.addDays(-i, to: today)
             var m = DayMetrics(day: day)
             m.sleep = byDay[day]
-            let trend = Double(39 - i) * 0.12
-            m.hrv = i == 0 ? 68 : 56 + trend + rng.range(-9, 9)
-            m.rhr = i == 0 ? 46 : 49 - trend * 0.05 + rng.range(-2, 2)
+            let trend: Double = Double(89 - i) * 0.055
+            let wd = cal.component(.weekday, from: day)
+            let afterHard: Double = wd == 5 || wd == 1 ? -5 : 0    // Tag nach Intervallen bzw. langem Lauf
+            let hrv: Double = i == 0 ? 68 : 55 + trend + afterHard + rng.range(-8, 8)
+            m.hrv = hrv
+            m.rmssd = hrv * 1.32 + rng.range(-3, 3)
+            m.rhr = i == 0 ? 46 : 49.5 - trend * 0.06 - afterHard * 0.2 + rng.range(-1.8, 1.8)
             m.resp = 13.9 + rng.range(-0.4, 0.4)
             m.spo2 = rng.range(0.955, 0.98)
             m.spo2Min = (m.spo2 ?? 0.96) - rng.range(0.01, 0.025)
-            m.temp = 34.1 + rng.range(-0.2, 0.2)
+            m.temp = 34.1 + rng.range(-0.15, 0.15)
+            m.steps = steps[day]
+            m.exerciseMin = exercise[day]
             out.append(m)
+        }
+        return out
+    }
+
+    static func steps() -> [Date: Double] {
+        var rng = RNG(s: 21)
+        let today = cal.dayStart(.now)
+        var out: [Date: Double] = [:]
+        for i in 0..<185 {
+            let d = cal.addDays(-i, to: today)
+            let recent: Double = i < 30 ? 900 : 0
+            out[d] = i == 0 ? 6450 : 8200 + recent + rng.range(-2600, 3200)
+        }
+        return out
+    }
+
+    static func exercise() -> [Date: Double] {
+        var rng = RNG(s: 23)
+        let today = cal.dayStart(.now)
+        var out: [Date: Double] = [:]
+        for i in 0..<185 {
+            let d = cal.addDays(-i, to: today)
+            let wd = cal.component(.weekday, from: d)
+            let base: Double = [1: 95, 2: 55, 3: 50, 4: 60, 5: 48, 6: 46, 7: 62][wd] ?? 40
+            out[d] = i == 0 ? 22 : base + rng.range(-12, 12)
+        }
+        return out
+    }
+
+    /// Puls über den Tag für Stress und Belastung (letzte 14 Tage, alle 5 Minuten, im Workout alle 10 Sekunden)
+    static func dayHR(workouts: [WorkoutItem], nights: [SleepNight]) -> [HRPoint] {
+        var rng = RNG(s: 31)
+        let start = cal.addDays(-14, to: cal.dayStart(.now))
+        var out: [HRPoint] = []
+        var t = start
+        while t < .now {
+            let h = Double(cal.component(.hour, from: t)) + Double(cal.component(.minute, from: t)) / 60
+            if let w = workouts.first(where: { t >= $0.start && t < $0.end }) {
+                var u = t
+                while u < min(w.end, t.addingTimeInterval(300)) {
+                    let f: Double = u.timeIntervalSince(w.start) / max(1, w.duration)
+                    let avg: Double = w.avgHR ?? 140
+                    out.append(HRPoint(date: u, bpm: avg * (0.85 + 0.15 * min(1, f * 6)) + 5 * sin(f * 25) + rng.range(-2, 2)))
+                    u = u.addingTimeInterval(10)
+                }
+            } else if nights.contains(where: { t >= $0.start && t <= $0.end }) {
+                out.append(HRPoint(date: t, bpm: 47 + rng.range(-3, 4)))
+            } else {
+                // Tagsüber: Arbeit am Schreibtisch, Wege, nachmittags ein Stressfenster
+                let meeting: Double = h > 13.5 && h < 15.5 ? 14 : 0
+                let commute: Double = (h > 7.5 && h < 8.2) || (h > 17.3 && h < 18) ? 22 : 0
+                let bpm: Double = 62 + 6 * sin((h - 6) / 24 * 2 * .pi) + meeting + commute + rng.range(-5, 7)
+                out.append(HRPoint(date: t, bpm: bpm))
+            }
+            t = t.addingTimeInterval(300)
+        }
+        return out
+    }
+
+    static func stepSamples() -> [StepSample] {
+        let start = cal.addDays(-14, to: cal.dayStart(.now))
+        var out: [StepSample] = []
+        var t = start
+        while t < .now {
+            let h = Double(cal.component(.hour, from: t)) + Double(cal.component(.minute, from: t)) / 60
+            if (h > 7.5 && h < 8.2) || (h > 17.3 && h < 18) {
+                out.append(StepSample(start: t, end: t.addingTimeInterval(600), count: 1050))
+            } else if h > 8 && h < 22 {
+                out.append(StepSample(start: t, end: t.addingTimeInterval(600), count: 60))
+            }
+            t = t.addingTimeInterval(600)
         }
         return out
     }
@@ -86,7 +163,7 @@ enum DemoData {
         var rng = RNG(s: 3)
         let today = cal.dayStart(.now)
         var out: [WorkoutItem] = []
-        for i in 1...28 {
+        for i in 1...180 {
             let day = cal.addDays(-i, to: today)
             let wd = cal.component(.weekday, from: day) // 1 = So
             let plan: (HKWorkoutActivityType, Double, Double, Double, Double)? // typ, km, pace s/km, HR, Stunde

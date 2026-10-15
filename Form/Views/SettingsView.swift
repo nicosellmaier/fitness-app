@@ -60,6 +60,14 @@ struct SettingsView: View {
                     Text("Der Maximalpuls bestimmt die Herzfrequenz-Zonen und die Belastung. Am genauesten ist der höchste Wert aus einem harten Wettkampf oder Test.")
                 }
                 Section {
+                    NavigationLink("KI-Coach verbinden") { CoachSetupView() }
+                    NavigationLink("Coach-Gedächtnis") { CoachMemoryView() }
+                } header: {
+                    Text("Coach")
+                } footer: {
+                    Text(CoachConfig.isConfigured ? "Verbunden mit deinem Worker." : "Noch nicht verbunden. Anleitung im Repo unter docs/KI-COACH.md.")
+                }
+                Section {
                     NavigationLink("Widgets und Dynamic Island") { WidgetGallery(page: 0) }
                     NavigationLink("Satzpause-Vorschau") { WidgetGallery(page: 1) }
                 } header: {

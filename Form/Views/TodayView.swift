@@ -9,6 +9,7 @@ struct TodayView: View {
     @State private var showSettings = false
     @State private var showWatch = false
     @State private var showPlanSetup = false
+    @State private var coachPrompt: CoachPrompt?
 
     var body: some View {
         NavigationStack {
@@ -18,6 +19,8 @@ struct TodayView: View {
                     Text(Fmt.day(.now)).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                     recoveryCard
                     statsRow
+                    coachCard
+                    JournalPromptCard()
                     restrictionBanner
                     planSection
                     nutritionSection
@@ -31,14 +34,39 @@ struct TodayView: View {
             .refreshable { await model.load() }
             .navigationTitle("Heute")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { coachPrompt = CoachPrompt(text: nil) } label: { Image(systemName: "sparkles") }
+                        .accessibilityLabel("Coach")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
                         .accessibilityLabel("Einstellungen")
                 }
             }
+            .sheet(item: $coachPrompt) { p in CoachView(initialPrompt: p.text) }
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(isPresented: $showPlanSetup) { PlanSetupView(existing: nil) }
         }
+    }
+
+    // MARK: Coach
+
+    private var coachCard: some View {
+        Button { coachPrompt = CoachPrompt(text: "Gib mir mein Tagesbriefing") } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                    .frame(width: 44, height: 44).background(Theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tagesbriefing vom Coach").font(.subheadline.weight(.bold))
+                    Text("Erholung, Training, Essen und Schlaf für heute in einer Antwort").font(.caption).foregroundStyle(Theme.muted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
+            }
+            .padding(14)
+            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Einschränkungen
@@ -212,8 +240,11 @@ struct TodayView: View {
                      note: night.map { "Score \(model.sleepScore($0))" }, noteColor: Theme.sleep)
             StatTile(title: "HRV", value: t?.hrv.map { Fmt.num($0) } ?? "–", unit: "ms",
                      note: deltaText(t?.hrv, hrvB?.mean, unit: ""), noteColor: (t?.hrv ?? 0) >= (hrvB?.mean ?? 0) ? Theme.good : Theme.warn)
-            StatTile(title: "Belastung", value: Fmt.num(model.strainToday, 1), unit: "/21",
-                     note: "Ziel \(Int(target.lowerBound))–\(Int(target.upperBound))", noteColor: Theme.warn)
+            NavigationLink { StrainDetailView() } label: {
+                StatTile(title: "Belastung", value: Fmt.num(model.strainToday, 1), unit: "/21",
+                         note: "Ziel \(Int(target.lowerBound))–\(Int(target.upperBound))", noteColor: Theme.warn)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -314,4 +345,9 @@ struct WorkoutRow: View {
         if let hr = item.avgHR { parts.append("Ø \(Int(hr)) bpm") }
         return parts.joined(separator: " · ")
     }
+}
+
+struct CoachPrompt: Identifiable {
+    let id = UUID()
+    let text: String?
 }

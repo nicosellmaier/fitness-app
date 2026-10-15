@@ -181,7 +181,7 @@ struct WorkoutDetailView: View {
         if let mx = item.maxHR { tiles.append(("Max. Puls", "\(Int(mx)) bpm")) }
         if let e = item.elevation, e > 1 { tiles.append(("Höhenmeter", "↑ \(Int(e)) m")) }
         if let k = item.energy { tiles.append(("Kalorien", "\(Int(k)) kcal")) }
-        tiles.append(("Belastung", Fmt.num(Analytics.strain([item], on: item.start, rhr: model.restingHR, maxHR: model.maxHR), 1)))
+        tiles.append(("Belastung", Fmt.num(Strain.workout(item, rhr: model.restingHR, maxHR: model.maxHR, female: model.female), 1)))
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
             ForEach(tiles, id: \.0) { t in StatTile(title: t.0, value: t.1) }
         }

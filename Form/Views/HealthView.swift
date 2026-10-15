@@ -5,22 +5,32 @@ struct HealthView: View {
     @Environment(AppModel.self) private var model
     @Environment(DataStore.self) private var store
 
+    @State private var showCoach = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if model.usingDemo { DemoBanner() }
                     sleepCard
+                    HealthMonitorCard()
+                    HRVTrendCard()
+                    SectionHeader("Langfristig")
+                    HealthspanCard()
+                    SectionHeader("Alltag")
+                    StressCard()
+                    JournalCard()
                     SectionHeader("Trends", trailing: "30 Tage")
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                         TrendTile(title: "HRV", unit: "ms", points: model.series(\.hrv), color: Theme.good, digits: 0, higherIsBetter: true)
                         TrendTile(title: "Ruhepuls", unit: "bpm", points: model.series(\.rhr), color: Theme.good, digits: 0, higherIsBetter: false)
                         TrendTile(title: "VO2max", unit: "", points: model.vo2, color: Theme.accent, digits: 1, higherIsBetter: true)
                         TrendTile(title: "Atemfrequenz", unit: "/min", points: model.series(\.resp), color: Theme.sleep, digits: 1, higherIsBetter: nil)
+                        TrendTile(title: "Schritte", unit: "", points: model.series(\.steps), color: Theme.accent, digits: 0, higherIsBetter: true)
+                        TrendTile(title: "Trainingsminuten", unit: "min", points: model.series(\.exerciseMin), color: Theme.warn, digits: 0, higherIsBetter: true)
                     }
                     SectionHeader("Recovery-Verlauf", trailing: "14 Tage")
                     recoveryChart
-                    warning
                     SectionHeader("Verletzung & Krankheit")
                     injuryLink
                 }
@@ -30,6 +40,13 @@ struct HealthView: View {
             .screenBackground()
             .refreshable { await model.load() }
             .navigationTitle("Gesundheit")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showCoach = true } label: { Image(systemName: "sparkles") }
+                        .accessibilityLabel("Coach")
+                }
+            }
+            .sheet(isPresented: $showCoach) { CoachView() }
         }
     }
 
@@ -101,26 +118,6 @@ struct HealthView: View {
         }
     }
 
-    @ViewBuilder private var warning: some View {
-        if let t = model.today, let i = model.days.indices.last {
-            let rb = Analytics.baseline(model.days, before: i, \.rhr)
-            let tb = Analytics.baseline(model.days, before: i, \.temp)
-            let rhrHigh = (t.rhr ?? 0) - (rb?.mean ?? 999) > 4
-            let tempHigh = (t.temp ?? 0) - (tb?.mean ?? 999) > 0.5
-            if rhrHigh && tempHigh {
-                NavigationLink { InjuryView() } label: {
-                    Hint(icon: "exclamationmark.triangle.fill", title: "Frühwarnung",
-                         text: "Ruhepuls und Temperatur sind gleichzeitig erhöht. Heute lieber locker oder Ruhetag, und beobachte, ob du krank wirst. Fühlst du dich krank, aktiviere hier den Krankheitsmodus.",
-                         color: Theme.warn)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Hint(icon: "checkmark.shield.fill", title: "Keine Auffälligkeiten",
-                     text: "Steigen Ruhepuls und Temperatur gleichzeitig, warnt dich die App, bevor du dich krank fühlst.",
-                     color: Theme.good)
-            }
-        }
-    }
 }
 
 extension HealthView {

@@ -642,7 +642,8 @@ enum PlanAdapter {
     static var cal: Calendar { Calendar.current }
 
     @discardableResult
-    static func adapt(_ plan: inout TrainingPlan, workouts: [WorkoutItem], recovery: Recovery?, restrictions: Restrictions, today: Date = .now) -> [String] {
+    static func adapt(_ plan: inout TrainingPlan, workouts: [WorkoutItem], recovery: Recovery?, restrictions: Restrictions,
+                      hrvLow: Bool = false, today: Date = .now) -> [String] {
         var notes: [String] = []
         let todayStart = cal.startOfDay(for: today)
         let runsDone = workouts.filter { $0.activity == .running }
@@ -747,8 +748,11 @@ enum PlanAdapter {
         // 4. Tagesform: harte Einheit bei schlechter Erholung verschieben oder entschärfen
         if let rec = recovery, let ti = plan.runs.firstIndex(where: { cal.isDate($0.date, inSameDayAs: today) && $0.status == .planned && $0.adjustKind == nil }) {
             let r = plan.runs[ti]
+            // Liegt der 7-Tage-HRV-Trend unter dem Normalbereich, wird höchstens moderat belastet (HRV-gesteuertes Training)
+            let score = hrvLow ? min(rec.score, 45) : rec.score
+            let why = hrvLow && rec.score > 45 ? "HRV-Trend unter Normalbereich" : "niedriger Erholung (\(rec.score))"
             if r.type.isQuality && r.type != .race {
-                if rec.score < 34 {
+                if score < 34 {
                     let longDays = Set(plan.runs.filter { $0.type == .long }.map { cal.startOfDay(for: $0.date) })
                     let swap = plan.runs.indices.first { (j: Int) -> Bool in
                         let d = plan.runs[j].date
@@ -760,7 +764,7 @@ enum PlanAdapter {
                         let qDate = plan.runs[ti].date, eDate = plan.runs[j].date
                         plan.runs[ti].date = eDate
                         plan.runs[j].date = qDate
-                        plan.runs[ti].adjusted = "Wegen niedriger Erholung (\(rec.score)) verschoben"
+                        plan.runs[ti].adjusted = "Wegen \(why) verschoben"
                         plan.runs[ti].adjustKind = "recovery"
                         plan.runs[j].adjusted = "Getauscht: heute locker statt hart"
                         plan.runs[j].adjustKind = "recovery"
@@ -772,11 +776,11 @@ enum PlanAdapter {
                         plan.runs[ti].title = e.title
                         plan.runs[ti].purpose = e.purpose
                         plan.runs[ti].structure = e.structure
-                        plan.runs[ti].adjusted = "Wegen niedriger Erholung (\(rec.score)) nur locker"
+                        plan.runs[ti].adjusted = "Wegen \(why) nur locker"
                         plan.runs[ti].adjustKind = "recovery"
                         notes.append("\(r.title) heute nur locker")
                     }
-                } else if rec.score < 50 {
+                } else if score < 50 {
                     save(&plan.runs[ti])
                     var st = r.structure
                     for b in st.blocks.indices where st.blocks[b].repeats > 2 {
@@ -784,7 +788,7 @@ enum PlanAdapter {
                     }
                     if st != r.structure {
                         plan.runs[ti].structure = st
-                        plan.runs[ti].adjusted = "Erholung nur \(rec.score): weniger Wiederholungen"
+                        plan.runs[ti].adjusted = hrvLow && rec.score > 45 ? "HRV-Trend unter Normalbereich: weniger Wiederholungen" : "Erholung nur \(rec.score): weniger Wiederholungen"
                         plan.runs[ti].adjustKind = "recovery"
                         notes.append("\(r.title): Umfang reduziert")
                     }
