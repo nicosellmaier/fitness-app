@@ -1,0 +1,19 @@
+name = "form-coach"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# Modell und Denkaufwand. Günstiger: MODEL = "claude-haiku-5-5"
+MODEL = "claude-sonnet-5-5"
+EFFORT = "medium"
+MAX_TOKENS = "4000"
+DAILY_LIMIT = "150"
+
+# Optional: Tageslimit aktivieren (KV-Namespace anlegen und ID eintragen)
+# [[kv_namespaces]]
+# binding = "LIMITS"
+# id = "DEINE_KV_ID"
+
+# Secrets (nie hier eintragen):
+#   npx wrangler secret put ANTHROPIC_API_KEY
+#   npx wrangler secret put APP_TOKEN

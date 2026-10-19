@@ -1,0 +1,86 @@
+name: Form
+options:
+  bundleIdPrefix: de.nicosellmaier
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  Form:
+    type: application
+    platform: iOS
+    sources:
+      - path: Form
+      - path: Shared
+    dependencies:
+      - target: FormWidgets
+    info:
+      path: Form/Info.plist
+      properties:
+        CFBundleDisplayName: Form
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen:
+          UIColorName: ""
+        UIUserInterfaceStyle: Dark
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+        NSHealthShareUsageDescription: "Form liest deine Schlaf-, Herz-, Trainings- und Gesundheitsdaten, um Erholung, Schlaf und Training auszuwerten."
+        NSHealthUpdateUsageDescription: "Form speichert Trainings, die du in der App anlegst, in Apple Health."
+        NSCameraUsageDescription: "Form nutzt die Kamera, um Barcodes von Lebensmitteln zu scannen."
+        NSSupportsLiveActivities: true
+        NSCalendarsFullAccessUsageDescription: "Form liest deinen ersten Termin am Morgen, um deine Weck- und Schlafenszeit zu planen. Kalenderdaten verlassen dein iPhone nicht."
+        NSAlarmKitUsageDescription: "Form stellt deinen Wecker auf die geplante Aufwachzeit."
+    entitlements:
+      path: Form/Form.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.access: []
+        com.apple.security.application-groups:
+          - group.de.nicosellmaier.form
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.nicosellmaier.form
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+  FormWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: FormWidgets
+      - path: Shared
+    info:
+      path: FormWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Form Widgets
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: FormWidgets/FormWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.de.nicosellmaier.form
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.nicosellmaier.form.widgets
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: ""
+schemes:
+  Form:
+    build:
+      targets:
+        Form: all

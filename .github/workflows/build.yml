@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Neuestes Xcode wählen
+        run: |
+          XC=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          if [ -z "$XC" ]; then
+            echo "::error title=Kein Xcode 26::Apple verlangt Xcode 26 oder neuer. Vorhanden: $(ls -d /Applications/Xcode*.app | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XC"
+          echo "::notice::$(xcodebuild -version | tr '\n' ' ')"
+
+      - name: Projekt erzeugen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: App bauen (unsigniert)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Form.xcodeproj \
+            -scheme Form \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build 2>&1 | tee build.log | grep -E "error:|warning: unre|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Fehler anzeigen
+        if: failure()
+        run: |
+          ERR=$(grep -E "error:" build.log | sed "s|$GITHUB_WORKSPACE/||" | sort -u | head -60 | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          [ -z "$ERR" ] && ERR=$(tail -40 build.log | sed ':a;N;$!ba;s/%/%25/g;s/\n/%0A/g')
+          echo "::error title=Build-Fehler::$ERR"

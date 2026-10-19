@@ -1,0 +1,110 @@
+name: Screenshots
+
+on:
+  workflow_dispatch:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  shots:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[shots]')
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Neuestes Xcode wählen
+        run: |
+          XC=$(ls -d /Applications/Xcode_2[6-9]*.app 2>/dev/null | grep -v -i beta | sort -V | tail -1)
+          if [ -z "$XC" ]; then
+            echo "::error title=Kein Xcode 26::Apple verlangt Xcode 26 oder neuer. Vorhanden: $(ls -d /Applications/Xcode*.app | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$XC"
+          echo "::notice::$(xcodebuild -version | tr '\n' ' ')"
+
+      - name: Projekt erzeugen
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Simulator wählen und starten
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys, re
+          d = json.load(sys.stdin)['devices']
+          def ver(k):
+              m = re.search(r'iOS-(\d+)-(\d+)', k)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          best = None
+          for k in sorted((k for k in d if 'iOS' in k), key=ver):
+              pros = [x for x in d[k] if re.match(r'iPhone \d+ Pro$', x['name'])]
+              pros.sort(key=lambda x: int(re.search(r'\d+', x['name']).group()))
+              if pros: best = pros[-1]
+          print(best['udid'])
+          print(best['name'], file=sys.stderr)
+          ")
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+
+      - name: Für Simulator bauen
+        run: |
+          set -o pipefail
+          xcodebuild -project Form.xcodeproj -scheme Form -configuration Debug \
+            -destination "id=$UDID" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tail -5
+
+      - name: Screenshots aufnehmen
+        run: |
+          xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/Form.app
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryLevel 100 --cellularBars 4 || true
+          mkdir -p shots
+          shoot () {
+            xcrun simctl launch --terminate-running-process "$UDID" de.nicosellmaier.form \
+              -demo YES -seedDemo YES -startTab "$2" -shot "$3" -trainingSeg "${4:-0}" > /dev/null
+            sleep 10
+            xcrun simctl io "$UDID" screenshot "shots/$1.png"
+          }
+          shoot 01-heute 0 none
+          shoot 02-plan 1 none 0
+          shoot 03-kraft 1 none 1
+          shoot 04-aktivitaeten 1 none 2
+          shoot 05-ernaehrung 2 none
+          shoot 06-gesundheit 3 none
+          shoot 07-finanzen 4 none
+          shoot 08-schlaf 0 sleep
+          shoot 09-lauf 0 workout
+          shoot 10-einheit 0 run
+          shoot 11-krafteinheit 0 session
+          shoot 20-gesundheit-oben 3 none
+          shoot 21-form-alter 0 healthspan
+          shoot 22-stress 0 stress
+          shoot 23-journal 0 journal
+          shoot 24-coach 0 coach
+          shoot 25-belastung 0 strain
+          shoot 26-schlafplan 0 sleepplan
+          shoot 12-verletzung 0 injury
+          shoot 13-heute-verletzt 0 none
+          shoot 14-plan-verletzt 1 none 0
+          shoot 15-kraft-verletzt 1 none 1
+          shoot 16-widgets 0 widgets
+          shoot 17-satzpause-vorschau 0 widgets2
+          shoot 18-satzpause-app 0 rest
+          xcrun simctl launch "$UDID" com.apple.Preferences > /dev/null
+          sleep 5
+          xcrun simctl io "$UDID" screenshot "shots/19-dynamic-island.png"
+          ls -la shots
+
+      - name: Auf Branch "screenshots" ablegen
+        run: |
+          cd shots
+          git init -q
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git checkout -q -b screenshots
+          git add .
+          git commit -qm "Screenshots ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" screenshots
