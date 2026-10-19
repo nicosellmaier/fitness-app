@@ -40,6 +40,13 @@ Eigene iOS-App, die Whoop, Strava, Runna, MyFitnessPal und Finanzguru ersetzt. A
 - Journal mit Auswertung, welches Verhalten deine Erholung verändert
 - Wochenziele für Aktivität, Kraft, Schritte und Schlaf
 
+**Schlafplan (wie Rise)**
+- Jeden Tag ideale Schlafens- und Weckzeit: Weckzeit aus erstem Kalendertermin, festen Weckzeiten oder Gewohnheit, Schlafenszeit aus Bedarf, Einschlafdauer und Schlaffenster der inneren Uhr
+- Echter Wecker per AlarmKit (iOS 26), auf Wunsch automatisch jeden Abend
+- Energiekurve des Tages (Zwei-Prozess-Modell) mit Morgenhoch, Nachmittagstief, Abendhoch
+- Tagesplan mit Erinnerungen: Tageslicht, letzter Kaffee, Nickerchen, Ende harter Einheiten, letzte Mahlzeit, Runterfahren
+- Schlafschuld über 14 Nächte, Chronotyp
+
 **KI-Coach**
 - Chat über die Claude API mit all deinen Daten als Kontext, Tagesbriefing, Gedächtnis
 - Läuft über einen eigenen Cloudflare Worker, der API-Schlüssel kommt nie aufs iPhone ([Einrichtung](docs/KI-COACH.md))

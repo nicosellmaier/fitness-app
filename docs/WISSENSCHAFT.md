@@ -24,9 +24,10 @@ Stand: Oktober 2026.
 | Journal, Behavior Insights | Journal mit Verhaltensanalyse | eigene Antworten + Erholung | statistisch sauber, aber nur Korrelation |
 | Weekly Plan | Wochenziele | Aktivität, Kraft, Schritte, Schlaf | Leitlinien (WHO) |
 | WHOOP Coach, My Memory | KI-Coach mit Gedächtnis | alle obigen Daten, Claude API | siehe Abschnitt 11 |
+| Rise: Schlafens- und Weckzeit, Energiekurve, Schlafschuld, Gewohnheiten | Schlafplan | Schlaf, Kalender, Trainingsplan | siehe Abschnitt 12 |
 | VO2max | aus Apple Health, zusätzlich Form-Wert (VDOT) aus Läufen | Apple-Schätzung, Laufzeiten | Apple unterschätzt, siehe 2.3 |
 
-Nicht nachgebaut, mit Begründung, siehe Abschnitt 12.
+Nicht nachgebaut, mit Begründung, siehe Abschnitt 13. Der Schlafplan nach dem Vorbild von Rise steht in Abschnitt 12.
 
 ---
 
@@ -163,10 +164,10 @@ Viele Apps zeigen das Verhältnis aus akuter und chronischer Belastung als Verle
 ```
 Bedarf = Grundbedarf (Standard 8 h, einstellbar)
        + Belastung des Tages / 21 · 45 min           höchstens 45 min
-       + Schlafschuld der letzten 7 Nächte / 4        höchstens 45 min
+       + 15 % der Schlafschuld (Abschnitt 12.3)         höchstens 60 min
 ```
 
-Für Sportler gibt es keinen festen Wert. Das Expertenkonsens-Papier (Walsh et al. 2021) empfiehlt ausdrücklich einen individuellen Bedarf statt pauschal 7–9 Stunden. Chronisch 6 Stunden führen über zwei Wochen zu kumulativen Leistungseinbußen, die man selbst kaum bemerkt (Van Dongen et al. 2003). Darum wird Schlafschuld angerechnet, aber nur zu einem Viertel pro Nacht, damit der Bedarf realistisch bleibt.
+Für Sportler gibt es keinen festen Wert. Das Expertenkonsens-Papier (Walsh et al. 2021) empfiehlt ausdrücklich einen individuellen Bedarf statt pauschal 7–9 Stunden. Chronisch 6 Stunden führen über zwei Wochen zu kumulativen Leistungseinbußen, die man selbst kaum bemerkt (Van Dongen et al. 2003). Darum wird Schlafschuld angerechnet, aber nur zu 15 % pro Nacht, damit der Bedarf realistisch bleibt.
 
 ### 6.2 Schlaf-Score (0–100)
 
@@ -339,11 +340,91 @@ Einrichtung: [KI-COACH.md](KI-COACH.md).
 
 ---
 
-## 12. Bewusst nicht nachgebaut
+## 12. Schlafplan wie Rise
+
+Rise gibt jeden Tag eine ideale Schlafens- und Weckzeit, eine Energiekurve und Zeitpunkte für Gewohnheiten aus. Rise legt seine Rechnung nicht offen. Form baut das mit veröffentlichter Schlafforschung nach.
+
+### 12.1 Weckzeit aus deinem Tag
+
+Reihenfolge, die erste passende Regel gewinnt:
+
+1. Von Hand für morgen festgelegt.
+2. Feste Weckzeit für diesen Wochentag (z.B. Arbeit). Ein früherer Kalendertermin minus Vorlauf hat trotzdem Vorrang.
+3. Erster Kalendertermin zwischen 3 und 14 Uhr minus Vorlauf (Morgenroutine plus Weg, Standard 60 min). Ganztägige, als frei markierte und abgelehnte Termine zählen nicht.
+4. Deine übliche Aufstehzeit (Median der letzten 4 Wochen, getrennt nach Arbeits- und freien Tagen). An freien Tagen mit Schlafschuld ab 2 h: bis zu 60 min später, 10 min je Stunde Schuld. Mehr nicht, weil große Verschiebungen am Wochenende die innere Uhr verstellen ("sozialer Jetlag").
+
+### 12.2 Schlafenszeit
+
+```
+Ins Bett = Weckzeit − Schlafbedarf − Zusatzzeit
+Schlafbedarf = Grundbedarf + Belastung + Schuldabbau (Abschnitt 6.1), +15 min wenn morgen eine harte oder lange Einheit ansteht
+Zusatzzeit = Median der letzten 14 Nächte aus (Zeit im Bett − Schlaf), also Einschlafen plus Wachphasen, begrenzt auf 10–60 min
+```
+
+**Schlaffenster:** Die gewohnte Einschlafzeit (Median der letzten 14 Nächte) ± 30 min. Etwa 2 bis 3 Stunden vor der gewohnten Schlafenszeit liegt die Wach-Erhaltungszone, in der man kaum einschläft (Lavie 1986; Monterastelli et al. 2024). Form plant deshalb nie früher als 60 min vor der gewohnten Einschlafzeit. Reicht das nicht für den Bedarf, sagt die App das und empfiehlt ein kurzes Nickerchen.
+
+### 12.3 Schlafschuld
+
+```
+Schuld = max(0; Σ über die letzten 14 Nächte w_i · (Grundbedarf − Schlaf_i)),   w_i = 1 − i/14 (i = 0 ist letzte Nacht)
+```
+
+Neuere Nächte zählen mehr, Nächte mit mehr Schlaf als Bedarf zahlen zurück. Unter 5 h gilt als niedrig, wie bei Rise. Der Bedarf jeder Nacht enthält 15 % der Schuld, höchstens 60 min: Abbau in kleinen Schritten, nicht durch langes Ausschlafen. Kumulative Leistungseinbußen durch chronisch zu wenig Schlaf sind gut belegt (Van Dongen et al. 2003).
+
+### 12.4 Energiekurve
+
+Zwei-Prozess-Modell der Schlafregulation (Borbély; Daan, Beersma & Borbély 1984):
+
+```
+Schlafdruck S(t) = 1 − (1 − S₀) · e^(−t / 18,2 h)          t = Stunden seit dem Aufwachen, S₀ steigt mit der Schlafschuld
+Innere Uhr C(t): Tiefpunkt 2 h vor der gewohnten Aufwachzeit, Hoch 2,5 h vor der gewohnten Einschlafzeit
+Nachmittagstief: Gauß-Delle 7,5 h nach dem Aufwachen
+Schlafträgheit I(t) = 0,35 · e^(−t / 0,45 h)
+Energie = C − S − I, auf 10–95 skaliert
+```
+
+Daraus liest die App Morgenhoch, Nachmittagstief und Abendhoch ab. Schlafträgheit dauert meist 15 bis 30 Minuten, volle Erholung braucht eine Stunde oder mehr (Hilditch & McHill 2019). Die Kurve ist ein Modell, keine Messung.
+
+### 12.5 Tagesplan
+
+| Zeitpunkt | Regel | Quelle |
+|---|---|---|
+| Tageslicht | erste Stunde nach dem Aufwachen | Licht am Morgen verschiebt die innere Uhr nach vorn (Khalsa et al. 2003) |
+| Letzter Kaffee | 8,8 h vor dem Schlafen | Koffein kostet im Schnitt 45 min Schlaf, Kaffee mit 107 mg braucht 8,8 h Abstand (Gardiner et al. 2023, 24 Studien) |
+| Nickerchen | im Nachmittagstief, 10 bis 20 min | 10 Minuten bringen den besten Nutzen ohne Trägheit (Brooks & Lack 2006) |
+| Ende harter Einheiten | 1 h vor dem Schlafen | Abendtraining stört nicht, nur intensives Training bis ≤ 1 h vor dem Schlafen (Stutz et al. 2019) |
+| Letzte große Mahlzeit, letzter Alkohol | 3 h vor dem Schlafen | Alkohol senkt die nächtliche HRV dosisabhängig (Pietilä et al. 2018) |
+| Runterfahren | 1 h vor dem Schlafen | Expertenempfehlung zur Schlafhygiene (Walsh et al. 2021) |
+
+### 12.6 Chronotyp
+
+Schlafmitte an freien Tagen, korrigiert um nachgeholten Schlaf (MSFsc, Roenneberg):
+
+```
+MSF = Mitte zwischen Einschlafen und Aufwachen an freien Tagen
+wenn Schlafdauer frei > Schlafdauer Arbeitstag:
+MSFsc = MSF − (SD_frei − SD_Woche) / 2,   SD_Woche = (5 · SD_Arbeit + 2 · SD_frei) / 7
+```
+
+Unter 3:30 Uhr früher Typ, 3:30 bis 5:00 mittlerer, darüber später Typ. Als freie Tage zählen Samstag und Sonntag.
+
+### 12.7 Wecker
+
+Ab iOS 26 stellt Form über Apples AlarmKit einen echten Wecker, der auch im Lautlos-Modus klingelt. Auf älteren Versionen kommt eine Mitteilung mit Ton. Optional stellt die App den Wecker jeden Abend automatisch auf den Plan. Ein Wecker, der in der Leichtschlafphase weckt, braucht eine eigene Watch-App (siehe Abschnitt 13).
+
+### 12.8 Grenzen
+
+- Die innere Uhr wird nicht gemessen, sondern aus deinen Schlafzeiten geschätzt.
+- Kalendertermine ohne Ortsangabe kennen deinen Weg nicht. Darum der einstellbare Vorlauf.
+- Kalenderdaten bleiben auf dem iPhone. An den KI-Coach geht nur die Uhrzeit des ersten Termins, nie der Titel.
+
+---
+
+## 13. Bewusst nicht nachgebaut
 
 | Whoop | Warum nicht |
 |---|---|
-| Vibrationswecker im Leichtschlaf | Braucht eine eigene Watch-App mit Hintergrundlaufzeit. Ein Wecker auf der Watch geht ohne diese App nicht zuverlässig. |
+| Vibrationswecker im Leichtschlaf | Braucht eine eigene Watch-App mit Hintergrundlaufzeit. Form stellt stattdessen einen echten Wecker zur geplanten Zeit (12.7). |
 | Advanced Labs (Bluttests) | Laborleistung, keine Software. |
 | Zyklus- und Schwangerschafts-Insights | Für dich nicht relevant. Technisch über Apple Health möglich, falls gewünscht. |
 | Blutdruck-Insights, EKG | Macht die Apple Watch selbst (Bluthochdruck-Hinweise, EKG-App) und ist dort medizinisch zugelassen. |
@@ -352,7 +433,7 @@ Einrichtung: [KI-COACH.md](KI-COACH.md).
 
 ---
 
-## 13. Quellen
+## 14. Quellen
 
 1. Altini M, Plews D (2021). What is behind changes in resting heart rate and heart rate variability? A large-scale analysis of longitudinal measurements acquired in free-living. *Sensors* 21(23):7932. https://www.mdpi.com/1424-8220/21/23/7932
 2. Arem H, et al. (2015). Leisure time physical activity and mortality: a detailed pooled analysis of the dose-response relationship. *JAMA Internal Medicine* 175(6):959–967.
@@ -383,7 +464,21 @@ Einrichtung: [KI-COACH.md](KI-COACH.md).
 27. Walsh NP, et al. (2021). Sleep and the athlete: narrative review and 2021 expert consensus recommendations. *British Journal of Sports Medicine* 55(7):356–368.
 28. Windred DP, et al. (2023). Sleep regularity is a stronger predictor of mortality risk than sleep duration: a prospective cohort study. *Sleep* 47(1):zsad253.
 29. Zhang D, Shen X, Qi X (2016). Resting heart rate and all-cause and cardiovascular mortality in the general population: a meta-analysis. *CMAJ* 188(3):E53–E63.
+30. Daan S, Beersma DGM, Borbély AA (1984). Timing of human sleep: recovery process gated by a circadian pacemaker. *American Journal of Physiology* 246(2):R161–R183.
+31. Borbély A (2022). The two-process model of sleep regulation: beginnings and outlook. *Journal of Sleep Research* 31(4):e13598. https://pmc.ncbi.nlm.nih.gov/articles/PMC9540767
+32. Brooks A, Lack L (2006). A brief afternoon nap following nocturnal sleep restriction: which nap duration is most recuperative? *Sleep* 29(6):831–840.
+33. Gardiner C, Weakley J, Burke LM, et al. (2023). The effect of caffeine on subsequent sleep: a systematic review and meta-analysis. *Sleep Medicine Reviews* 69:101764.
+34. Hilditch CJ, McHill AW (2019). Sleep inertia: current insights. *Nature and Science of Sleep* 11:155–165.
+35. Khalsa SBS, Jewett ME, Cajochen C, Czeisler CA (2003). A phase response curve to single bright light pulses in human subjects. *Journal of Physiology* 549(3):945–952.
+36. Lavie P (1986). Ultrashort sleep-waking schedule. III. 'Gates' and 'forbidden zones' for sleep. *Electroencephalography and Clinical Neurophysiology* 63(5):414–425.
+37. Monterastelli AJ, Adams J, Eastman CI, Crowley SJ (2024). The forbidden zone for sleep is more robust in adolescents compared to adults. *Frontiers in Sleep* 2:1304647.
+38. Roenneberg T, et al. (2004). A marker for the end of adolescence. *Current Biology* 14(24):R1038–R1039.
+39. Stutz J, Eiholzer R, Spengler CM (2019). Effects of evening exercise on sleep in healthy participants: a systematic review and meta-analysis. *Sports Medicine* 49(2):269–287.
+
+Rise: [RISE Sleep Tracker](https://www.risescience.com/llms.txt).
 
 Whoop-Funktionen: [What's new at WHOOP 2026](https://www.whoop.com/us/en/thelocker/2026-whats-new/), [Healthspan](https://www.whoop.com/us/en/thelocker/healthspan/), [Stress Monitor](https://www.whoop.com/thelocker/introducing-stress-monitor-a-new-way-to-monitor-manage-stress/), [Passive MSK (the5krunner)](https://the5krunner.com/2026/02/28/new-whoop-strength-trainer-update/).
+
+Apple AlarmKit: [WWDC25 "Wake up to the AlarmKit API"](https://developer.apple.com/videos/play/wwdc2025/230/).
 
 Claude API: [Preise](https://platform.claude.com/docs/en/about-claude/pricing), [Streaming](https://platform.claude.com/docs/en/build-with-claude/streaming), [Prompt-Caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), [Effort](https://platform.claude.com/docs/en/build-with-claude/effort).

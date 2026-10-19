@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 // Schlafplan wie bei Rise: Weckzeit aus deinem Tag, Schlafenszeit aus Bedarf und innerer Uhr.
-// Formeln und Quellen: docs/WISSENSCHAFT.md, Abschnitt 14.
+// Formeln und Quellen: docs/WISSENSCHAFT.md, Abschnitt 12.
 
 struct SleepPrefs: Codable, Hashable {
     /// Minuten zwischen Aufwachen und erstem Termin (Morgenroutine plus Weg)
