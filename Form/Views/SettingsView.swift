@@ -60,6 +60,11 @@ struct SettingsView: View {
                     Text("Der Maximalpuls bestimmt die Herzfrequenz-Zonen und die Belastung. Am genauesten ist der höchste Wert aus einem harten Wettkampf oder Test.")
                 }
                 Section {
+                    NavigationLink("Weckzeiten, Kalender, Erinnerungen") { SleepPrefsView() }
+                } header: {
+                    Text("Schlafplan")
+                }
+                Section {
                     NavigationLink("KI-Coach verbinden") { CoachSetupView() }
                     NavigationLink("Coach-Gedächtnis") { CoachMemoryView() }
                 } header: {
@@ -104,7 +109,7 @@ struct SettingsView: View {
                         store.update { $0.profile = p }
                         if wantsReminder { Task { await Notifications.requestPermission() } }
                         let need = model.needTonight
-                        Notifications.updateBedtime(enabled: p.bedtimeReminder, bedtime: Analytics.bedtime(nights: model.nights, need: need.total), need: need.total)
+                        Notifications.updateBedtime(enabled: p.bedtimeReminder, bedtime: model.sleepPlan?.bedtime, need: need.total)
                         WidgetBridge.update(model: model, store: store)
                         model.maxHR = maxHR
                         model.sleepBaseHours = sleepBase

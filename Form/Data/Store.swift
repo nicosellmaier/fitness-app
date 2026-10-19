@@ -253,6 +253,7 @@ struct AppData: Codable {
     var hiddenBehaviors: [String] = []
     var coachMemory: [String] = []
     var coachHistory: [CoachMessage] = []
+    var sleepPrefs = SleepPrefs()
 
     init() {}
 
@@ -277,6 +278,7 @@ struct AppData: Codable {
         hiddenBehaviors = (try? c.decodeIfPresent([String].self, forKey: .hiddenBehaviors)) ?? []
         coachMemory = (try? c.decodeIfPresent([String].self, forKey: .coachMemory)) ?? []
         coachHistory = (try? c.decodeIfPresent([CoachMessage].self, forKey: .coachHistory)) ?? []
+        sleepPrefs = (try? c.decodeIfPresent(SleepPrefs.self, forKey: .sleepPrefs)) ?? SleepPrefs()
     }
 }
 

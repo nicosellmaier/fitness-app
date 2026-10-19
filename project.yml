@@ -37,6 +37,8 @@ targets:
         NSHealthUpdateUsageDescription: "Form speichert Trainings, die du in der App anlegst, in Apple Health."
         NSCameraUsageDescription: "Form nutzt die Kamera, um Barcodes von Lebensmitteln zu scannen."
         NSSupportsLiveActivities: true
+        NSCalendarsFullAccessUsageDescription: "Form liest deinen ersten Termin am Morgen, um deine Weck- und Schlafenszeit zu planen. Kalenderdaten verlassen dein iPhone nicht."
+        NSAlarmKitUsageDescription: "Form stellt deinen Wecker auf die geplante Aufwachzeit."
     entitlements:
       path: Form/Form.entitlements
       properties:

@@ -115,7 +115,19 @@ enum CoachContext {
         }
         let need = model.needTonight
         L.append("Schlafbedarf heute Nacht: \(Fmt.hm(need.total)) h (Grundbedarf \(Fmt.hm(need.base)), Belastung +\(Fmt.hm(need.strain)), Schuld +\(Fmt.hm(need.debt))).")
-        if let bed = Analytics.bedtime(nights: model.nights, need: need.total) { L.append("Empfohlene Schlafenszeit: \(Fmt.time(bed)).") }
+        if let p = model.sleepPlan {
+            // Kalendertitel bleiben auf dem iPhone, nur die Uhrzeit geht mit
+            var src = p.sourceText
+            var reasons = p.reasons
+            if case .calendar(let e) = p.source {
+                src = "erster Kalendertermin um \(Fmt.time(e.start))"
+                reasons = reasons.filter { !$0.contains(e.title) }
+            }
+            L.append("Schlafplan heute Nacht: ins Bett \(Fmt.time(p.bedtime)), Wecker \(Fmt.time(p.wake)) (\(src)), geplant \(Fmt.hm(p.planned)) h Schlaf. Schlaffenster der inneren Uhr \(Fmt.time(p.sleepGate.lowerBound))–\(Fmt.time(p.sleepGate.upperBound)). Letzter Kaffee \(Fmt.time(p.caffeineCutoff)).")
+            if !reasons.isEmpty { L.append("Hinweise zum Schlafplan: " + reasons.joined(separator: "; ")) }
+        }
+        L.append("Schlafschuld (14 Nächte, gewichtet): \(Fmt.num(model.sleepDebt.hours, 1)) h.")
+        if let c = model.chronotype { L.append("Chronotyp: \(c.label), Schlafmitte freie Tage (korrigiert) \(Int(c.msfsc) / 60):\(String(format: "%02d", Int(c.msfsc) % 60)).") }
         if let s = model.stressToday, let a = s.average { L.append("Stress heute (0–3): Schnitt \(Fmt.num(a, 1)), \(Fmt.num(s.highMinutes)) min hoch.") }
         let outside = model.vitals.filter(\.outside)
         if !outside.isEmpty { L.append("Auffällige Nachtwerte: " + outside.map { "\($0.name) \($0.value) (Bereich \($0.range))" }.joined(separator: "; ") + ".") }

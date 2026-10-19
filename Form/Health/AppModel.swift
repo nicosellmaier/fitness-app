@@ -22,6 +22,11 @@ final class AppModel {
     var sessions: [StrengthSession] = []
     var female = false
     var birthYear = 2003
+    var sleepPrefs = SleepPrefs()
+    /// Erster Termin am nächsten Morgen aus dem Kalender
+    var tomorrowEvent: CalendarEvent?
+    /// Harte oder lange Einheit morgen laut Trainingsplan
+    var hardTomorrow: String?
     var loading = false
     var loaded = false
     var usingDemo = false
@@ -90,6 +95,36 @@ final class AppModel {
     }
 
     var hrvTrend: HRVTrend? { HRVTrend.make(days) }
+
+    // MARK: Schlafplan
+
+    var sleepDebt: SleepDebt { SleepPlanner.debt(nights, need: sleepBaseHours * 3600) }
+
+    var sleepPlan: SleepPlan? {
+        SleepPlanner.plan(nights: nights, need: needTonight.total, prefs: sleepPrefs, event: tomorrowEvent,
+                          hardTomorrow: hardTomorrow, debtHours: sleepDebt.hours)
+    }
+
+    var chronotype: Chronotype? { SleepPlanner.chronotype(nights) }
+
+    /// Aufwachzeit heute: aus der letzten Nacht, sonst gewohnt
+    var todayWake: Date? {
+        let cal = Calendar.current
+        if let n = nights.last, cal.isDateInToday(n.wakeDay) { return n.end }
+        guard let hw = SleepPlanner.habitualWake(nights, free: SleepPlanner.isFreeDay(.now)) else { return nil }
+        return SleepPlanner.date(noonMinutes: hw, nightEnding: cal.startOfDay(for: .now))
+    }
+
+    var energyToday: [EnergyPoint] {
+        guard let wake = todayWake, let plan = sleepPlan, let onset = SleepPlanner.habitualOnset(nights),
+              let hw = SleepPlanner.habitualWake(nights, free: false) else { return [] }
+        return SleepPlanner.energy(wake: wake, bed: plan.bedtime, habitualOnset: onset, habitualWake: hw, debtHours: sleepDebt.hours)
+    }
+
+    var planSteps: [PlanStep] {
+        guard let wake = todayWake, let plan = sleepPlan else { return [] }
+        return SleepPlanner.steps(plan: plan, todayWake: wake, todayBed: plan.bedtime, energy: energyToday)
+    }
 
     var stressToday: StressDay? { Stress.compute(hr: hr, steps: stepSamples, workouts: workouts, nights: nights) }
 
@@ -209,6 +244,10 @@ final class AppModel {
         rhrByDay = rbd
         activeKcalToday = 420
         weightKg = nil
+        let tomorrow = Calendar.current.addDays(1, to: Calendar.current.startOfDay(for: .now))
+        if !SleepPlanner.isFreeDay(tomorrow) {
+            tomorrowEvent = CalendarEvent(title: "Vorlesung", start: tomorrow.addingTimeInterval(8 * 3600 + 15 * 60))
+        }
         leanMassKg = 63.5
         heightM = 1.81
     }

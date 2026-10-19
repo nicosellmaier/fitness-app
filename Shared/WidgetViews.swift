@@ -155,7 +155,8 @@ struct TodayWidgetView: View {
                             mini(icon: "fork.knife", text: k >= 0 ? "\(k) kcal übrig" : "\(-k) kcal drüber", color: Theme.accent)
                         }
                         if let b = s.bedtime {
-                            mini(icon: "bed.double.fill", text: b.formatted(date: .omitted, time: .shortened), color: Theme.sleep)
+                            mini(icon: "bed.double.fill", text: b.formatted(date: .omitted, time: .shortened)
+                                 + (s.wake.map { " → " + $0.formatted(date: .omitted, time: .shortened) } ?? ""), color: Theme.sleep)
                         }
                     }
                 }

@@ -85,6 +85,7 @@ jobs:
           shoot 23-journal 0 journal
           shoot 24-coach 0 coach
           shoot 25-belastung 0 strain
+          shoot 26-schlafplan 0 sleepplan
           shoot 12-verletzung 0 injury
           shoot 13-heute-verletzt 0 none
           shoot 14-plan-verletzt 1 none 0

@@ -138,7 +138,9 @@ enum WidgetBridge {
         s.strain = model.strainToday
         let need = model.needTonight
         s.needMinutes = Int(need.total / 60)
-        s.bedtime = Analytics.bedtime(nights: model.nights, need: need.total)
+        let plan = model.sleepPlan
+        s.bedtime = plan?.bedtime
+        s.wake = plan?.wake
 
         let cal = Calendar.current
         let today = cal.startOfDay(for: .now)

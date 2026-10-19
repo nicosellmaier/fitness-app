@@ -31,6 +31,7 @@ struct WidgetSnapshot: Codable {
     var hrv: Int?
     var strain: Double?
     var bedtime: Date?
+    var wake: Date?
     var needMinutes: Int?
     var kcalLeft: Int?
     var kcalTarget: Int?
@@ -67,6 +68,7 @@ struct WidgetSnapshot: Codable {
         s.hrv = 68
         s.strain = 4.1
         s.bedtime = Calendar.current.date(bySettingHour: 22, minute: 15, second: 0, of: .now)
+        s.wake = Calendar.current.date(bySettingHour: 6, minute: 30, second: 0, of: Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now)
         s.needMinutes = 515
         s.kcalLeft = 1310
         s.kcalTarget = 2950

@@ -64,6 +64,8 @@ struct RootView: View {
                 NavigationStack { JournalView(day: Calendar.current.addDays(-1, to: Calendar.current.startOfDay(for: .now))) }
             } else if shot == "coach" {
                 CoachView()
+            } else if shot == "sleepplan" {
+                NavigationStack { SleepPlanView() }
             } else if shot == "strain" {
                 NavigationStack { StrainDetailView() }
             } else if shot == "widgets" || shot == "widgets2" {
@@ -88,12 +90,25 @@ struct RootView: View {
         .onChange(of: store.data.sessions.count) { _, _ in syncModel() }
         .onChange(of: store.data.profile.birthYear) { _, _ in syncModel() }
         .onChange(of: store.data.profile.sex) { _, _ in syncModel() }
+        .onChange(of: store.data.sleepPrefs) { _, _ in afterChange() }
+        .onChange(of: store.data.profile.bedtimeReminder) { _, _ in afterChange() }
     }
 
     /// Health-Daten laden, Plan live anpassen, Widgets und Erinnerungen aktualisieren
     @MainActor
     private func syncModel() {
         model.sessions = store.data.sessions
+        model.sleepPrefs = store.data.sleepPrefs
+        let wakeDay = SleepPlanner.nextWakeDay()
+        if let r = store.data.plan?.run(on: wakeDay), r.status == .planned, r.type.isQuality || r.type == .long {
+            model.hardTomorrow = r.title
+        } else {
+            model.hardTomorrow = nil
+        }
+        if !model.usingDemo {
+            model.tomorrowEvent = store.data.sleepPrefs.useCalendar
+                ? CalendarService.firstEvent(on: wakeDay, calendarIDs: store.data.sleepPrefs.calendarIDs) : nil
+        }
         model.female = store.data.profile.sex == .female
         model.birthYear = store.data.profile.birthYear
     }
@@ -121,9 +136,15 @@ struct RootView: View {
             }
         }
         WidgetBridge.update(model: model, store: store)
-        let need = model.needTonight
-        Notifications.updateBedtime(enabled: store.data.profile.bedtimeReminder,
-                                    bedtime: Analytics.bedtime(nights: model.nights, need: need.total), need: need.total)
+        let plan = model.sleepPlan
+        PlanReminders.update(plan: plan, prefs: store.data.sleepPrefs, bedtimeReminder: store.data.profile.bedtimeReminder,
+                             need: model.needTonight.total)
+        // Wecker automatisch auf den Plan stellen
+        if store.data.sleepPrefs.autoAlarm, let p = plan, p.wake > .now, !model.usingDemo {
+            if WakeAlarm.scheduledFor.map({ abs($0.timeIntervalSince(p.wake)) >= 60 }) ?? true {
+                Task { @MainActor in _ = await WakeAlarm.set(p.wake) }
+            }
+        }
     }
 }
 

@@ -176,10 +176,11 @@ enum Analytics {
     // MARK: Schlafbedarf und -score
 
     static func sleepNeed(nights: [SleepNight], base: TimeInterval, strainToday: Double) -> SleepNeed {
-        let weekly = nights.suffix(7).reduce(0) { $0 + max(0, base - $1.asleep) }
-        let debt = min(45 * 60, weekly / 4)
+        // Schlafschuld der letzten 14 Nächte (gewichtet), davon 15 % pro Nacht zurückzahlen, höchstens 60 min
+        let debt14 = SleepPlanner.debt(nights, need: base).hours * 3600
+        let debt = min(60 * 60, debt14 * 0.15)
         let strain = min(45 * 60, strainToday / 21 * 45 * 60)
-        return SleepNeed(base: base, strain: strain, debt: debt, weeklyDebt: weekly)
+        return SleepNeed(base: base, strain: strain, debt: debt, weeklyDebt: debt14)
     }
 
     /// Minuten seit 12 Uhr mittags, damit Zeiten um Mitternacht vergleichbar sind

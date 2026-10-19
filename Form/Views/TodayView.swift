@@ -19,6 +19,7 @@ struct TodayView: View {
                     Text(Fmt.day(.now)).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                     recoveryCard
                     statsRow
+                    TonightCard()
                     coachCard
                     JournalPromptCard()
                     restrictionBanner
@@ -268,8 +269,8 @@ struct TodayView: View {
                         }
                         StageBar(night: n).frame(height: 10)
                         let need = model.needTonight
-                        if let bed = Analytics.bedtime(nights: model.nights, need: need.total) {
-                            Text("Heute Nacht: \(Fmt.hm(need.total)) h Bedarf · ins Bett um \(Fmt.time(bed))")
+                        if let p = model.sleepPlan {
+                            Text("Heute Nacht: \(Fmt.hm(need.total)) h Bedarf · ins Bett um \(Fmt.time(p.bedtime))")
                                 .font(.footnote.weight(.semibold)).foregroundStyle(Theme.sleep)
                         }
                     }

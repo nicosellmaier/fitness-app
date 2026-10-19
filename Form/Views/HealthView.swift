@@ -80,7 +80,7 @@ struct HealthView: View {
                         }
                         let need = model.needTonight
                         if need.weeklyDebt > 1800 {
-                            Text("Schlafschuld der Woche: \(Fmt.hm(need.weeklyDebt)) h. Heute Nacht \(Fmt.hm(need.total)) h einplanen.")
+                            Text("Schlafschuld (14 Nächte): \(Fmt.hm(need.weeklyDebt)) h. Heute Nacht \(Fmt.hm(need.total)) h einplanen.")
                                 .font(.caption).foregroundStyle(Theme.soft)
                                 .padding(10)
                                 .frame(maxWidth: .infinity, alignment: .leading)

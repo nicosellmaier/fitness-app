@@ -243,18 +243,18 @@ struct SleepView: View {
                         Text(Fmt.hm(need.total) + " h").font(.title.weight(.heavy))
                     }
                     Spacer()
-                    if let bed = Analytics.bedtime(nights: model.nights, need: need.total) {
+                    if let p = model.sleepPlan {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("INS BETT UM").font(.caption.weight(.heavy)).foregroundStyle(Theme.muted)
-                            Text(Fmt.time(bed)).font(.title.weight(.heavy)).foregroundStyle(Theme.accent)
+                            Text(Fmt.time(p.bedtime)).font(.title.weight(.heavy)).foregroundStyle(Theme.accent)
                         }
                     }
                 }
                 kv("Grundbedarf", Fmt.hm(need.base))
                 kv("+ Belastung heute", "+" + Fmt.hm(need.strain))
                 kv("+ Schlafschuld abbauen", "+" + Fmt.hm(need.debt))
-                if let wake = Analytics.wakeTarget(nights: model.nights) {
-                    Text("Gerechnet für deine übliche Aufwachzeit um \(Fmt.time(wake)). Schlafschuld der letzten 7 Nächte: \(Fmt.hm(need.weeklyDebt)) h.")
+                if let p = model.sleepPlan {
+                    Text("Wecker \(Fmt.time(p.wake)) (\(p.sourceText)). Schlafschuld der letzten 14 Nächte: \(Fmt.hm(need.weeklyDebt)) h.")
                         .font(.caption).foregroundStyle(Theme.soft)
                         .padding(10)
                         .background(Theme.card2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
