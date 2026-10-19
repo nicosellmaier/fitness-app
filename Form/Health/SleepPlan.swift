@@ -111,6 +111,10 @@ enum SleepPlanner {
         return cal.date(bySetting: .second, value: 0, of: d.addingTimeInterval(-Double(m % 15) * 60)) ?? d
     }
 
+    static func floor5(_ d: Date) -> Date {
+        Date(timeIntervalSinceReferenceDate: (d.timeIntervalSinceReferenceDate / 300).rounded(.down) * 300)
+    }
+
     static func round5(_ d: Date) -> Date {
         let t = (d.timeIntervalSinceReferenceDate / 300).rounded() * 300
         return Date(timeIntervalSinceReferenceDate: t)
@@ -261,7 +265,8 @@ enum SleepPlanner {
             clampedEarly = true
             reasons.append("Früher als \(Fmt.time(earliest)) schläfst du kaum ein (innere Uhr). Dir fehlen \(Fmt.hm(missing)) h: ein 20-Minuten-Nickerchen im Nachmittagstief hilft.")
         }
-        bed = round5(bed)
+        // Abrunden, damit die geplante Schlafzeit nie unter dem Bedarf liegt
+        bed = clampedEarly ? round5(bed) : floor5(bed)
         let planned = wake.timeIntervalSince(bed) - extra
         if planned > need + 10 * 60 && !clampedEarly {
             reasons.append("\(Fmt.hm(planned - need)) h mehr als dein Bedarf: zahlt Schlafschuld zurück")
