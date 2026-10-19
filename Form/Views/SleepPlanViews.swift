@@ -117,7 +117,7 @@ struct SleepPlanView: View {
             VStack(alignment: .leading, spacing: 12) {
                 if let p = model.sleepPlan {
                     hero(p)
-                    if !p.reasons.isEmpty {
+                    if true {
                         Card {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("So kommt der Plan zustande").font(.subheadline.weight(.bold))

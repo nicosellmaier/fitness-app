@@ -82,7 +82,7 @@ struct SleepPlan {
         switch source {
         case .override: return "Von dir festgelegt"
         case .fixed: return "Feste Weckzeit für diesen Wochentag"
-        case .calendar(let e): return "Erster Termin: \(e.title) um \(Fmt.time(e.start))"
+        case .calendar(let e): return "Erster Termin: \(e.title) um \(Fmt.time(e.start)), abzüglich Vorlauf"
         case .habit: return "Deine übliche Aufstehzeit"
         }
     }
@@ -228,7 +228,6 @@ enum SleepPlanner {
         } else if let e = event {
             wake = e.start.addingTimeInterval(-Double(prefs.prepMinutes) * 60)
             source = .calendar(e)
-            reasons.append("\(e.title) um \(Fmt.time(e.start)), \(prefs.prepMinutes) min Vorlauf")
         } else {
             let hw = habitualWake(nights, free: free) ?? 19 * 60
             wake = date(noonMinutes: hw, nightEnding: wakeDay)
