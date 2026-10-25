@@ -15,6 +15,17 @@ developer.apple.com/account → *Certificates, IDs & Profiles* → *Identifiers*
    Unter *Capabilities* anhaken: **HealthKit** und **App Groups**. Danach bei App Groups auf *Configure* und die Gruppe aus Schritt 1 auswählen.
 3. **App ID der Widgets**: wie oben, Bundle ID `de.nicosellmaier.form.widgets`, nur **App Groups** anhaken und dieselbe Gruppe zuweisen.
 
+## 2b. iPhone registrieren (einmalig)
+
+Beim Bauen signiert Xcode die App zuerst mit einem Entwicklerprofil, und das braucht mindestens ein registriertes Gerät. Ohne Gerät bricht der Lauf mit "Your team has no devices" ab.
+
+1. Schließ das iPhone per Kabel an einen Mac an (macOS 10.15 reicht).
+2. Öffne den Finder und wähle links das iPhone aus.
+3. Klick oben unter dem Gerätenamen auf die graue Zeile mit Modell und Speicher, bis die **UDID** erscheint.
+4. Klick mit der rechten Maustaste darauf und kopiere sie.
+5. Öffne developer.apple.com/account → *Certificates, IDs & Profiles* → *Devices* → **+**.
+6. Wähle iOS, gib als Name `iPhone Nico` ein und füg die UDID ein.
+
 ## 3. App in App Store Connect anlegen
 appstoreconnect.apple.com → *Apps* → **+** → *Neue App*
 
@@ -75,6 +86,7 @@ Die App braucht keine eigene Watch-App. Einheiten aus dem Trainingsplan landen �
 ## Wenn etwas schiefgeht
 Der Fehler steht in GitHub direkt in der Zusammenfassung des Laufs.
 
+- **Your team has no devices**: Schritt 2b fehlt.
 - **No profiles for 'de.nicosellmaier.form' were found**: Schritt 2 prüfen, beide App IDs müssen existieren und HealthKit beziehungsweise App Groups aktiviert haben.
 - **Cloud signing permission error**: Der API-Schlüssel hat nicht die Rolle *Admin*. Neuen Schlüssel mit Admin anlegen und die Secrets ersetzen.
 - **No suitable application records were found**: Schritt 3 fehlt oder die Bundle-ID ist anders geschrieben.
