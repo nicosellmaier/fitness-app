@@ -1,7 +1,8 @@
 name: TestFlight
 
 # Startet manuell unter Actions → TestFlight → Run workflow.
-# Braucht die Secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 und TEAM_ID (siehe docs/TESTFLIGHT.md).
+# Braucht die Secrets ASC_KEY_ID, ASC_ISSUER_ID und ASC_KEY_P8 (siehe docs/TESTFLIGHT.md).
+# Die Team ID steht in project.yml und kann optional per Secret TEAM_ID überschrieben werden.
 
 on:
   workflow_dispatch:
@@ -28,10 +29,10 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID || '2HB4D3R8QB' }}
         run: |
           missing=""
-          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 TEAM_ID; do
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
             [ -z "${!v}" ] && missing="$missing $v"
           done
           if [ -n "$missing" ]; then
@@ -58,7 +59,7 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID || '2HB4D3R8QB' }}
         run: |
           set -o pipefail
           xcodebuild -project Form.xcodeproj -scheme Form -configuration Release \
@@ -77,7 +78,7 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID || '2HB4D3R8QB' }}
         run: |
           cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>

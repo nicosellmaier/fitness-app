@@ -5,7 +5,7 @@ Einmalige Einrichtung, dauert etwa 20 Minuten. Danach reicht ein Klick in GitHub
 ## 1. Developer Account
 Der Apple Developer Account (99 € im Jahr) muss aktiv sein. Die Freischaltung dauert nach dem Bezahlen manchmal bis zu 48 Stunden.
 
-**Team ID notieren:** developer.apple.com/account → Mitgliedschaftsdetails → *Team ID* (10 Zeichen, z. B. `A1B2C3D4E5`).
+Deine Team ID `2HB4D3R8QB` ist schon im Projekt eingetragen.
 
 ## 2. Kennungen registrieren
 developer.apple.com/account → *Certificates, IDs & Profiles* → *Identifiers* → **+**
@@ -46,7 +46,6 @@ github.com/nicosellmaier/fitness-app → *Settings* → *Secrets and variables* 
 | `ASC_KEY_ID` | Schlüssel-ID aus Schritt 4 |
 | `ASC_ISSUER_ID` | Issuer-ID aus Schritt 4 |
 | `ASC_KEY_P8` | Kompletter Inhalt der .p8-Datei, inklusive der Zeilen `-----BEGIN PRIVATE KEY-----` und `-----END PRIVATE KEY-----` |
-| `TEAM_ID` | Team ID aus Schritt 1 |
 
 Die .p8-Datei kannst du am iPhone in der Dateien-App mit einem Texteditor öffnen oder am Rechner mit einem beliebigen Editor, dann alles kopieren.
 
