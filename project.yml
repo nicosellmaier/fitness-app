@@ -39,6 +39,10 @@ targets:
         NSSupportsLiveActivities: true
         NSCalendarsFullAccessUsageDescription: "Form liest deinen ersten Termin am Morgen, um deine Weck- und Schlafenszeit zu planen. Kalenderdaten verlassen dein iPhone nicht."
         NSAlarmKitUsageDescription: "Form stellt deinen Wecker auf die geplante Aufwachzeit."
+        NSUbiquitousContainers:
+          iCloud.de.nicosellmaier.form:
+            NSUbiquitousContainerIsDocumentScopePublic: false
+            NSUbiquitousContainerName: Form
     entitlements:
       path: Form/Form.entitlements
       properties:
@@ -46,6 +50,13 @@ targets:
         com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - group.de.nicosellmaier.form
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.de.nicosellmaier.form
+        com.apple.developer.icloud-services:
+          - CloudDocuments
+        com.apple.developer.ubiquity-container-identifiers:
+          - iCloud.de.nicosellmaier.form
+        com.apple.developer.siri: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.nicosellmaier.form

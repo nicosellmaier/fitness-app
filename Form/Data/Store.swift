@@ -70,6 +70,23 @@ struct RoutineItem: Identifiable, Codable, Hashable {
     var sets: Int = 3
     var repMin: Int = 6
     var repMax: Int = 10
+    var superset: Int? = nil
+    var note: String = ""
+
+    init(exerciseId: String, sets: Int = 3, repMin: Int = 6, repMax: Int = 10, superset: Int? = nil, note: String = "") {
+        self.exerciseId = exerciseId; self.sets = sets; self.repMin = repMin; self.repMax = repMax; self.superset = superset; self.note = note
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(UUID.self, forKey: .id)) ?? UUID()
+        exerciseId = try c.decode(String.self, forKey: .exerciseId)
+        sets = (try? c.decode(Int.self, forKey: .sets)) ?? 3
+        repMin = (try? c.decode(Int.self, forKey: .repMin)) ?? 6
+        repMax = (try? c.decode(Int.self, forKey: .repMax)) ?? 10
+        superset = try? c.decodeIfPresent(Int.self, forKey: .superset)
+        note = (try? c.decodeIfPresent(String.self, forKey: .note)) ?? ""
+    }
 }
 
 struct Routine: Identifiable, Codable, Hashable {
@@ -92,6 +109,9 @@ struct SessionExercise: Identifiable, Codable, Hashable {
     var repMax: Int
     var sets: [SetEntry]
     var replaced: String? = nil
+    /// Supersatz-Gruppe: Übungen mit derselben Nummer werden im Wechsel gemacht
+    var superset: Int? = nil
+    var note: String = ""
 }
 
 struct StrengthSession: Identifiable, Codable, Hashable {
@@ -101,6 +121,9 @@ struct StrengthSession: Identifiable, Codable, Hashable {
     var start: Date
     var end: Date?
     var exercises: [SessionExercise]
+    /// Anstrengung 1 bis 10, nach der Einheit abgefragt
+    var rpe: Int? = nil
+    var note: String = ""
 
     var volume: Double {
         exercises.reduce(0) { acc, e in acc + e.sets.filter(\.done).reduce(0) { $0 + $1.weight * Double($1.reps) } }
@@ -240,6 +263,29 @@ struct CoachMessage: Identifiable, Codable, Hashable {
 
 // MARK: Gesamte gespeicherte Daten
 
+/// Notiz zu einem Workout aus Apple Health (RPE, Schuh, Text)
+struct WorkoutNote: Codable, Hashable {
+    var rpe: Int? = nil
+    var shoeId: UUID? = nil
+    var text: String = ""
+    var treadmill: Bool = false
+}
+
+struct Shoe: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var name: String
+    var startKm: Double = 0
+    var limitKm: Double = 700
+    var since: Date = .now
+    var retired: Bool = false
+    var isDefault: Bool = false
+}
+
+/// Schnell-Eintrag für Wasser (ml) pro Tag
+struct WaterLog: Codable, Hashable {
+    var ml: Double = 0
+}
+
 struct AppData: Codable {
     var profile = Profile()
     var routines: [Routine] = []
@@ -260,6 +306,21 @@ struct AppData: Codable {
     var sleepPrefs = SleepPrefs()
     /// Profil beim ersten Start ausgefüllt
     var profileDone = false
+    /// Zeitpunkt des letzten Speicherns, entscheidet beim Start zwischen lokaler und iCloud-Kopie
+    var savedAt = Date.distantPast
+    /// Workout-UUID → RPE, Schuh, Notiz
+    var workoutNotes: [String: WorkoutNote] = [:]
+    var shoes: [Shoe] = []
+    /// Tag (yyyy-MM-dd) → Wasser in ml
+    var water: [String: Double] = [:]
+    /// Tag (yyyy-MM-dd) → Gewicht in kg (manuell eingetragen)
+    var weightLog: [String: Double] = [:]
+    var recipes: [Recipe] = []
+    var mealTemplates: [MealTemplate] = []
+    var favoriteFoods: [String] = []
+    /// Plan pausiert bis (Urlaub)
+    var planPausedUntil: Date? = nil
+    var reminders = ReminderPrefs()
 
     init() {}
 
@@ -287,6 +348,16 @@ struct AppData: Codable {
         sleepPrefs = (try? c.decodeIfPresent(SleepPrefs.self, forKey: .sleepPrefs)) ?? SleepPrefs()
         // Bestehende Daten ohne das Feld stammen von vor dem Profil-Dialog: nicht erneut fragen
         profileDone = (try? c.decodeIfPresent(Bool.self, forKey: .profileDone)) ?? true
+        savedAt = (try? c.decodeIfPresent(Date.self, forKey: .savedAt)) ?? .distantPast
+        workoutNotes = (try? c.decodeIfPresent([String: WorkoutNote].self, forKey: .workoutNotes)) ?? [:]
+        shoes = (try? c.decodeIfPresent([Shoe].self, forKey: .shoes)) ?? []
+        water = (try? c.decodeIfPresent([String: Double].self, forKey: .water)) ?? [:]
+        weightLog = (try? c.decodeIfPresent([String: Double].self, forKey: .weightLog)) ?? [:]
+        recipes = (try? c.decodeIfPresent([Recipe].self, forKey: .recipes)) ?? []
+        mealTemplates = (try? c.decodeIfPresent([MealTemplate].self, forKey: .mealTemplates)) ?? []
+        favoriteFoods = (try? c.decodeIfPresent([String].self, forKey: .favoriteFoods)) ?? []
+        planPausedUntil = try? c.decodeIfPresent(Date.self, forKey: .planPausedUntil)
+        reminders = (try? c.decodeIfPresent(ReminderPrefs.self, forKey: .reminders)) ?? ReminderPrefs()
     }
 }
 
@@ -303,6 +374,11 @@ final class DataStore {
         dec.dateDecodingStrategy = .secondsSince1970
         if let d = try? Data(contentsOf: url), let decoded = try? dec.decode(AppData.self, from: d) {
             data = decoded
+        }
+        // Neuere Kopie in iCloud (neues iPhone, zweites Gerät)? Dann die nehmen.
+        if let cloud = CloudBackup.read(), cloud.savedAt > data.savedAt.addingTimeInterval(2) {
+            data = cloud
+            restoredFromCloud = true
         }
         if let d = try? Data(contentsOf: sessionURL), let s = try? dec.decode(StrengthSession.self, from: d) {
             activeSession = s
@@ -321,10 +397,31 @@ final class DataStore {
         save()
     }
 
+    private(set) var restoredFromCloud = false
+
     private func save() {
+        data.savedAt = .now
         let enc = JSONEncoder()
         enc.dateEncodingStrategy = .secondsSince1970
-        if let d = try? enc.encode(data) { try? d.write(to: url, options: .atomic) }
+        guard let d = try? enc.encode(data) else { return }
+        try? d.write(to: url, options: .atomic)
+        CloudBackup.scheduleWrite(d)
+    }
+
+    /// Lokale Daten durch die iCloud-Kopie ersetzen
+    func restoreFromCloud() -> Bool {
+        guard let cloud = CloudBackup.read() else { return false }
+        data = cloud
+        ExerciseDB.custom = data.customExercises
+        save()
+        return true
+    }
+
+    /// Jetzt sofort sichern
+    func backupNow() {
+        let enc = JSONEncoder()
+        enc.dateEncodingStrategy = .secondsSince1970
+        if let d = try? enc.encode(data) { CloudBackup.write(d) }
     }
 
     func saveActiveSession() {

@@ -5,98 +5,147 @@ struct HealthView: View {
     @Environment(AppModel.self) private var model
     @Environment(DataStore.self) private var store
 
-    @State private var showCoach = false
-
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if model.usingDemo { DemoBanner() }
-                    sleepCard
-                    HealthMonitorCard()
-                    HRVTrendCard()
-                    SectionHeader("Langfristig")
-                    HealthspanCard()
-                    SectionHeader("Alltag")
-                    StressCard()
-                    JournalCard()
-                    SectionHeader("Trends", trailing: "30 Tage")
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                        ForEach(trendKinds) { k in
-                            NavigationLink { MetricDetailView(kind: k) } label: {
-                                TrendTile(title: k.title, unit: k.unit, points: Array(model.points(k).suffix(30)), color: k.color,
-                                          digits: k.digits, higherIsBetter: k.higherIsBetter, format: k.format)
-                            }
-                            .buttonStyle(.press)
+                    hero
+                    alerts
+                    SectionHeader("Bereiche")
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        tile("Schlaf", "bed.double.fill", Theme.sleep,
+                             model.lastNight.map { Fmt.hm($0.asleep) + " h" } ?? "–",
+                             model.lastNight.map { "Score \(model.sleepScore($0))" } ?? "keine Daten") { SleepView() }
+                        tile("Schlafplan", "alarm.fill", Theme.sleep,
+                             model.sleepPlan.map { Fmt.time($0.bedtime) } ?? "–",
+                             model.sleepPlan.map { "Wecker \(Fmt.time($0.wake))" } ?? "ins Bett") { SleepPlanView() }
+                        tile("Vitalwerte", "waveform.path.ecg", Theme.good,
+                             model.today?.hrv.map { Fmt.num($0) + " ms" } ?? "–",
+                             outsideText) { VitalsView() }
+                        tile("Belastung", "flame.fill", Theme.warn,
+                             Fmt.num(model.strainToday, 1),
+                             "Ziel \(Int(Analytics.strainTarget(model.recoveryToday).lowerBound))–\(Int(Analytics.strainTarget(model.recoveryToday).upperBound))") { StrainDetailView() }
+                        tile("Stress", "brain.head.profile", Theme.warn,
+                             model.stressToday.map { Fmt.num($0.current ?? $0.average ?? 0, 1) } ?? "–",
+                             model.stressToday.map { StressDay.label($0.current ?? $0.average ?? 0) } ?? "keine Daten") { StressView() }
+                        tile("Form-Alter", "hourglass", Theme.accent,
+                             model.healthspan.map { Fmt.num($0.formAge, 1) } ?? "–",
+                             model.healthspan.map { $0.delta <= 0 ? "\(Fmt.num(abs($0.delta), 1)) J jünger" : "\(Fmt.num($0.delta, 1)) J älter" } ?? "Jahre") { HealthspanView() }
+                        if model.female {
+                            tile("Zyklus", "circle.dotted.circle", Color(hex: 0xFF8AB8),
+                                 model.cycle.map { "Tag \($0.day)" } ?? "–",
+                                 model.cycle?.phase.label ?? "keine Daten") { CycleView() }
                         }
+                        tile("Gewicht", "scalemass.fill", Theme.soft,
+                             (model.weights.last?.value ?? model.weightKg).map { Fmt.num($0, 1) + " kg" } ?? "–",
+                             weightTrend) { MetricDetailView(kind: .weight) }
+                        tile("Journal", "book.closed.fill", Theme.sleep,
+                             "\(store.data.journal.count)", "Tage eingetragen") {
+                            JournalView(day: Calendar.current.addDays(-1, to: Calendar.current.startOfDay(for: .now)))
+                        }
+                        tile("Nicht fit?", store.restrictions.isEmpty ? "figure.walk" : "bandage.fill",
+                             store.restrictions.isEmpty ? Theme.good : Theme.bad,
+                             store.restrictions.isEmpty ? "Alles fit" : "\(store.restrictions.allReasons.count) aktiv",
+                             store.restrictions.isEmpty ? "Verletzung, Krankheit" : store.restrictions.allReasons.joined(separator: ", ")) { InjuryView() }
                     }
-                    SectionHeader("Recovery-Verlauf", trailing: "14 Tage")
-                    NavigationLink { MetricDetailView(kind: .recovery) } label: { recoveryChart }
-                        .buttonStyle(.press)
                     SectionHeader("Letzte Tage")
                     recentDays
                     SectionHeader("Alle Messwerte")
                     AllMetricsCard()
-                    SectionHeader("Verletzung & Krankheit")
-                    injuryLink
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
             }
-            .screenBackground()
+            .screenBackground(model.recoveryToday?.color ?? Theme.accent)
             .refreshable { await model.load() }
-            .navigationTitle("Gesundheit")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showCoach = true } label: { Image(systemName: "sparkles") }
-                        .accessibilityLabel("Coach")
-                }
-            }
-            .sheet(isPresented: $showCoach) { CoachView() }
+            .navigationTitle("Körper")
         }
     }
 
-    @ViewBuilder private var sleepCard: some View {
-        if let n = model.lastNight {
-            NavigationLink { SleepView() } label: {
-                Card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("LETZTE NACHT").font(.caption.weight(.heavy)).foregroundStyle(Theme.muted)
-                                Text(Fmt.hm(n.asleep) + " h").font(.title.weight(.heavy))
-                                Text("\(Fmt.time(n.bedTime)) – \(Fmt.time(n.end)) · \(Int(n.efficiency * 100)) % Effizienz")
-                                    .font(.footnote).foregroundStyle(Theme.muted)
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text("Score").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
-                                Text("\(model.sleepScore(n))").font(.title.weight(.heavy)).foregroundStyle(Theme.sleep)
-                            }
-                        }
-                        StageBar(night: n).frame(height: 12)
-                        HStack {
-                            ForEach([SleepStage.deep, .core, .rem, .awake]) { s in
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(s.label).font(.caption2.weight(.semibold)).foregroundStyle(s.color)
-                                    Text(Fmt.hm(n.time(s))).font(.footnote.weight(.heavy))
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        let need = model.needTonight
-                        if need.weeklyDebt > 1800 {
-                            Text("Schlafschuld (14 Nächte): \(Fmt.hm(need.weeklyDebt)) h. Heute Nacht \(Fmt.hm(need.total)) h einplanen.")
-                                .font(.caption).foregroundStyle(Theme.soft)
-                                .padding(10)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Theme.card2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
+    // MARK: Kopf
+
+    @ViewBuilder private var hero: some View {
+        if let r = model.recoveryToday {
+            NavigationLink { DayDetailView(day: .now) } label: {
+                HStack(spacing: 16) {
+                    ZStack {
+                        Ring(progress: Double(r.score) / 100, color: r.color, lineWidth: 10)
+                        Text("\(r.score)").font(.system(size: 30, weight: .heavy)).contentTransition(.numericText())
                     }
+                    .frame(width: 88, height: 88)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("ERHOLUNG HEUTE").font(.caption.weight(.heavy)).foregroundStyle(Theme.muted)
+                        Text(r.label).font(.headline).foregroundStyle(r.color)
+                        Text(r.text).font(.footnote).foregroundStyle(Theme.soft).multilineTextAlignment(.leading).lineLimit(2)
+                    }
+                    Spacer(minLength: 0)
+                    Chevron()
                 }
+                .padding(18)
+                .background(CardBackground(radius: 24, tint: r.color))
             }
             .buttonStyle(.press)
         }
+    }
+
+    /// Nur, wenn etwas auffällig ist
+    @ViewBuilder private var alerts: some View {
+        let outside = model.vitals.filter(\.outside)
+        if outside.count >= 2 {
+            NavigationLink { VitalsView() } label: {
+                Hint(icon: "exclamationmark.triangle.fill", title: "\(outside.count) Werte außerhalb deines Bereichs",
+                     text: outside.map(\.name).joined(separator: ", ") + ". Oft vor einem Infekt, nach Alkohol oder bei Schlafmangel. Heute lieber locker.",
+                     color: Theme.warn)
+            }
+            .buttonStyle(.press)
+        }
+        if let t = model.hrvTrend, t.state == .below {
+            NavigationLink { MetricDetailView(kind: .hrv) } label: {
+                Hint(icon: "waveform.path.ecg", title: "HRV-Trend unter deinem Bereich",
+                     text: "7-Tage-Schnitt \(Fmt.num(t.rolling7)) ms. Der Plan setzt harte Einheiten aus, bis er zurück ist.", color: Theme.warn)
+            }
+            .buttonStyle(.press)
+        }
+    }
+
+    private var outsideText: String {
+        let v = model.vitals
+        if v.isEmpty { return "keine Daten" }
+        let o = v.filter(\.outside).count
+        return o == 0 ? "alle im Bereich" : "\(o) auffällig"
+    }
+
+    private var weightTrend: String {
+        let w = model.weights
+        guard w.count >= 4, let last = w.last else { return "Verlauf" }
+        let from = Calendar.current.addDays(-30, to: last.date)
+        let old = w.filter { $0.date >= from }
+        guard old.count >= 2, let first = old.first else { return "Verlauf" }
+        let d = last.value - first.value
+        return (d >= 0 ? "+" : "−") + Fmt.num(abs(d), 1) + " kg in 30 T"
+    }
+
+    private func tile<D: View>(_ title: String, _ icon: String, _ color: Color, _ value: String, _ note: String,
+                               @ViewBuilder destination: @escaping () -> D) -> some View {
+        NavigationLink { destination() } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: icon).font(.subheadline.weight(.bold)).foregroundStyle(Theme.bg)
+                        .frame(width: 32, height: 32)
+                        .background(color, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    Spacer()
+                    Chevron()
+                }
+                Text(title).font(.subheadline.weight(.bold)).lineLimit(1)
+                Text(value).font(.title3.weight(.heavy)).lineLimit(1).minimumScaleFactor(0.7).contentTransition(.numericText())
+                Text(note).font(.caption2).foregroundStyle(Theme.muted).lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(CardBackground(radius: 20))
+        }
+        .buttonStyle(.press)
     }
 
     private var trendKinds: [MetricKind] {
@@ -143,55 +192,6 @@ struct HealthView: View {
         .background(CardBackground(radius: 20))
     }
 
-    private var recoveryChart: some View {
-        let start = max(0, model.days.count - 14)
-        let pts: [(Date, Int)] = (start..<model.days.count).compactMap { i in
-            model.recovery(at: i).map { (model.days[i].day, $0.score) }
-        }
-        return Card {
-            if pts.isEmpty {
-                Text("Noch zu wenig Daten.").font(.footnote).foregroundStyle(Theme.soft)
-            } else {
-                Chart(pts, id: \.0) { p in
-                    BarMark(x: .value("Tag", p.0, unit: .day), y: .value("Erholung", p.1))
-                        .foregroundStyle(p.1 >= 67 ? Theme.good : p.1 >= 34 ? Theme.warn : Theme.bad)
-                        .cornerRadius(4)
-                }
-                .chartYScale(domain: 0...100)
-                .chartXAxis {
-                    AxisMarks(values: .stride(by: .day, count: 2)) { _ in
-                        AxisValueLabel(format: .dateTime.day())
-                    }
-                }
-                .frame(height: 130)
-            }
-        }
-    }
-
-}
-
-extension HealthView {
-    var injuryLink: some View {
-        let active = store.data.injuries.filter(\.active)
-        let ill = store.data.illness?.active == true
-        return NavigationLink { InjuryView() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: active.isEmpty && !ill ? "figure.walk" : "bandage.fill").font(.title3.weight(.bold))
-                    .foregroundStyle(active.isEmpty && !ill ? Theme.good : Theme.bad).frame(width: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ill ? "Krankheitsmodus aktiv" : active.isEmpty ? "Alles fit" : active.map(\.title).joined(separator: ", "))
-                        .font(.subheadline.weight(.bold))
-                    Text(active.isEmpty && !ill ? "Verletzung oder Krankheit eintragen, Plan und Kraft passen sich an." : "Tippen zum Ändern oder Gesundmelden.")
-                        .font(.caption).foregroundStyle(Theme.muted)
-                }
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
-            }
-            .padding(14)
-            .background(CardBackground(radius: 20))
-        }
-        .buttonStyle(.press)
-    }
 }
 
 struct TrendTile: View {

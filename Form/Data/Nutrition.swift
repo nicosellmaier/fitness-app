@@ -168,3 +168,65 @@ enum FoodDB {
         FoodItem(id: "b_nuts", name: "Mandeln", kcal: 579, protein: 21, carbs: 22, fat: 50, serving: 30),
     ]
 }
+
+// MARK: Rezepte und Mahlzeiten
+
+struct RecipeIngredient: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var food: FoodItem
+    var grams: Double
+}
+
+/// Rezept: Zutaten ergeben ein eigenes Lebensmittel pro 100 g
+struct Recipe: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var name: String
+    var ingredients: [RecipeIngredient] = []
+    var portions: Double = 1
+    var created: Date = .now
+
+    var totalGrams: Double { ingredients.reduce(0) { $0 + $1.grams } }
+    var totalKcal: Double { ingredients.reduce(0) { $0 + $1.food.kcal * $1.grams / 100 } }
+    var totalProtein: Double { ingredients.reduce(0) { $0 + $1.food.protein * $1.grams / 100 } }
+    var totalCarbs: Double { ingredients.reduce(0) { $0 + $1.food.carbs * $1.grams / 100 } }
+    var totalFat: Double { ingredients.reduce(0) { $0 + $1.food.fat * $1.grams / 100 } }
+    var portionGrams: Double { portions > 0 ? totalGrams / portions : totalGrams }
+
+    /// Als Lebensmittel pro 100 g, Portion als Standardmenge
+    var asFood: FoodItem {
+        let g = max(1, totalGrams)
+        return FoodItem(id: "recipe_\(id.uuidString)", name: name, brand: "Rezept", kcal: totalKcal / g * 100, protein: totalProtein / g * 100,
+                        carbs: totalCarbs / g * 100, fat: totalFat / g * 100, serving: portionGrams, custom: true)
+    }
+}
+
+/// Gespeicherte Mahlzeit: mehrere Einträge mit einem Tipp wieder einfügen
+struct MealTemplate: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var name: String
+    var items: [RecipeIngredient] = []
+    var created: Date = .now
+
+    var kcal: Double { items.reduce(0) { $0 + $1.food.kcal * $1.grams / 100 } }
+    var protein: Double { items.reduce(0) { $0 + $1.food.protein * $1.grams / 100 } }
+}
+
+/// Schnell-Eintrag ohne Lebensmittel
+extension FoodItem {
+    static func quick(kcal: Double, protein: Double, carbs: Double, fat: Double, name: String = "Schnell-Eintrag") -> FoodItem {
+        FoodItem(id: "quick_\(UUID().uuidString)", name: name, kcal: kcal, protein: protein, carbs: carbs, fat: fat, serving: 100, custom: true)
+    }
+}
+
+/// Erinnerungen
+struct ReminderPrefs: Codable, Hashable {
+    var briefing = false
+    var briefingHour = 7
+    var briefingMinute = 30
+    var journal = false
+    var journalHour = 9
+    var meals = false
+    var water = false
+    var waterGoalMl: Double = 2500
+    var weeklyReport = true
+}

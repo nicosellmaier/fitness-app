@@ -713,7 +713,7 @@ enum PlanAdapter {
 
     @discardableResult
     static func adapt(_ plan: inout TrainingPlan, workouts: [WorkoutItem], recovery: Recovery?, restrictions: Restrictions,
-                      hrvLow: Bool = false, today: Date = .now) -> [String] {
+                      hrvLow: Bool = false, easeReason: String? = nil, today: Date = .now) -> [String] {
         var notes: [String] = []
         let todayStart = cal.startOfDay(for: today)
         let runsDone = workouts.filter { $0.activity == .running }
@@ -819,8 +819,9 @@ enum PlanAdapter {
         if let rec = recovery, let ti = plan.runs.firstIndex(where: { cal.isDate($0.date, inSameDayAs: today) && $0.status == .planned && $0.adjustKind == nil }) {
             let r = plan.runs[ti]
             // Liegt der 7-Tage-HRV-Trend unter dem Normalbereich, wird höchstens moderat belastet (HRV-gesteuertes Training)
-            let score = hrvLow ? min(rec.score, 45) : rec.score
-            let why = hrvLow && rec.score > 45 ? "HRV-Trend unter Normalbereich" : "niedriger Erholung (\(rec.score))"
+            let ease = hrvLow || easeReason != nil
+            let score = ease ? min(rec.score, 45) : rec.score
+            let why = ease && rec.score > 45 ? (easeReason ?? "HRV-Trend unter Normalbereich") : "niedriger Erholung (\(rec.score))"
             if r.type.isQuality && r.type != .race {
                 if score < 34 {
                     let longDays = Set(plan.runs.filter { $0.type == .long }.map { cal.startOfDay(for: $0.date) })
@@ -858,7 +859,7 @@ enum PlanAdapter {
                     }
                     if st != r.structure {
                         plan.runs[ti].structure = st
-                        plan.runs[ti].adjusted = hrvLow && rec.score > 45 ? "HRV-Trend unter Normalbereich: weniger Wiederholungen" : "Erholung nur \(rec.score): weniger Wiederholungen"
+                        plan.runs[ti].adjusted = ease && rec.score > 45 ? "\(easeReason ?? "HRV-Trend unter Normalbereich"): weniger Wiederholungen" : "Erholung nur \(rec.score): weniger Wiederholungen"
                         plan.runs[ti].adjustKind = "recovery"
                         notes.append("\(r.title): Umfang reduziert")
                     }

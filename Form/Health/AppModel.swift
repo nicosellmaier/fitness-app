@@ -5,6 +5,9 @@ import Observation
 @Observable
 final class AppModel {
     var days: [DayMetrics] = []
+    /// Zyklus: Blutungstage aus Health, daraus Phase und Korrektur
+    var cycleRecords: [CycleRecord] = []
+    var cycleCorrection: CycleCorrection?
     var nights: [SleepNight] = []
     var workouts: [WorkoutItem] = []
     var vo2: [Point] = []
@@ -58,6 +61,25 @@ final class AppModel {
     // MARK: Abgeleitete Werte
 
     var today: DayMetrics? { days.last }
+
+    var cycle: CycleState? { female ? CycleModel.state(records: cycleRecords) : nil }
+
+    /// Tageswerte für Erholung und Monitor: in Lutealphasen um den Zykluseffekt bereinigt
+    var analysisDays: [DayMetrics] {
+        guard female, let c = cycleCorrection, !cycleRecords.isEmpty else { return days }
+        return CycleModel.adjust(days, records: cycleRecords, defaultLength: cycle?.length ?? 28, correction: c)
+    }
+
+    func cyclePhase(on day: Date) -> CyclePhase? {
+        guard female, !cycleRecords.isEmpty else { return nil }
+        return CycleModel.phase(on: day, records: cycleRecords, defaultLength: cycle?.length ?? 28)
+    }
+
+    /// Plan in den letzten Tagen vor der Periode entschärfen
+    var cycleEaseReason: String? {
+        guard let c = cycle, c.phase == .lateLuteal || (c.phase == .menstrual && c.day <= 2) else { return nil }
+        return c.phase == .menstrual ? "Zyklus: erste Periodentage" : "Zyklus: späte Lutealphase"
+    }
     var lastNight: SleepNight? { nights.last.flatMap { Calendar.current.isDateInToday($0.wakeDay) ? $0 : nil } ?? nights.last }
 
     var restingHR: Double { days.reversed().compactMap(\.rhr).first ?? 55 }
@@ -82,11 +104,12 @@ final class AppModel {
     }
 
     var recoveryToday: Recovery? {
-        Analytics.recovery(days: days, index: days.count - 1, need: needForLastNight)
+        let d = analysisDays
+        return Analytics.recovery(days: d, index: d.count - 1, need: needForLastNight)
     }
 
     func recovery(at i: Int) -> Recovery? {
-        Analytics.recovery(days: days, index: i, need: sleepBaseHours * 3600)
+        Analytics.recovery(days: analysisDays, index: i, need: sleepBaseHours * 3600)
     }
 
     /// Erholung pro Tag, für Journal-Auswertungen
@@ -96,7 +119,7 @@ final class AppModel {
         return out
     }
 
-    var hrvTrend: HRVTrend? { HRVTrend.make(days) }
+    var hrvTrend: HRVTrend? { HRVTrend.make(analysisDays) }
 
     // MARK: Schlafplan
 
@@ -130,7 +153,7 @@ final class AppModel {
 
     var stressToday: StressDay? { Stress.compute(hr: hr, steps: stepSamples, workouts: workouts, nights: nights) }
 
-    var vitals: [VitalStatus] { HealthMonitor.vitals(days) }
+    var vitals: [VitalStatus] { HealthMonitor.vitals(analysisDays) }
 
     var healthspan: Healthspan? {
         HealthspanModel.compute(HealthspanInputs(
@@ -221,6 +244,10 @@ final class AppModel {
             workouts = ws.map { health.item(from: $0) }
             activeKcalToday = (try? await health.sum(.activeEnergyBurned, unit: .kilocalorie(), from: cal.dayStart(.now))) ?? 0
             weightKg = try? await health.latest(.bodyMass, unit: .gramUnit(with: .kilo))
+            if let flow = try? await health.menstrualFlow(from: cal.addDays(-400, to: today)) {
+                cycleRecords = CycleModel.records(from: flow)
+                cycleCorrection = CycleModel.correction(days: days, records: cycleRecords, defaultLength: CycleModel.state(records: cycleRecords)?.length ?? 28)
+            }
             if let ws = try? await health.quantity(.bodyMass, from: cal.addDays(-365, to: today)) {
                 var byDay: [Date: Double] = [:]
                 for q in ws.sorted(by: { $0.startDate < $1.startDate }) {
@@ -266,5 +293,15 @@ final class AppModel {
         }
         leanMassKg = 63.5
         heightM = 1.81
+        // Beispiel-Zyklus: 29 Tage, letzte Periode vor 19 Tagen (Lutealphase)
+        var recs: [CycleRecord] = []
+        var start = cal.addDays(-18, to: cal.startOfDay(for: .now))
+        for i in 0..<6 {
+            let len = [29, 28, 30, 29, 27, 29][i]
+            recs.insert(CycleRecord(start: start, length: i == 0 ? nil : len, periodDays: 5), at: 0)
+            start = cal.addDays(-len, to: start)
+        }
+        cycleRecords = recs
+        cycleCorrection = CycleCorrection(temp: 0.32, rhr: 3.1, hrv: -6.4, samples: 120)
     }
 }

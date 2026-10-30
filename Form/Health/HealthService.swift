@@ -12,7 +12,7 @@ final class HealthService {
 
     var readTypes: Set<HKObjectType> {
         var s: Set<HKObjectType> = [HKCategoryType(.sleepAnalysis), HKCategoryType(.mindfulSession), HKObjectType.workoutType(),
-                                    HKSeriesType.workoutRoute(), HKSeriesType.heartbeat()]
+                                    HKSeriesType.workoutRoute(), HKSeriesType.heartbeat(), HKCategoryType(.menstrualFlow)]
         let ids: [HKQuantityTypeIdentifier] = [
             .heartRateVariabilitySDNN, .restingHeartRate, .heartRate, .respiratoryRate, .oxygenSaturation,
             .appleSleepingWristTemperature, .vo2Max, .activeEnergyBurned, .basalEnergyBurned,
@@ -24,7 +24,7 @@ final class HealthService {
     }
 
     func requestAccess() async throws {
-        try await store.requestAuthorization(toShare: [HKObjectType.workoutType(), HKCategoryType(.mindfulSession)], read: readTypes)
+        try await store.requestAuthorization(toShare: [HKObjectType.workoutType(), HKCategoryType(.mindfulSession), HKCategoryType(.menstrualFlow), HKQuantityType(.bodyMass), HKQuantityType(.dietaryWater)], read: readTypes)
     }
 
     func sum(_ id: HKQuantityTypeIdentifier, unit: HKUnit, from: Date, to: Date = .now) async throws -> Double {

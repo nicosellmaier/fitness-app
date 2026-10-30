@@ -95,10 +95,8 @@ struct RootView: View {
                     TodayView().tabItem { Label("Heute", systemImage: "house.fill") }.tag(0)
                     TrainingView().tabItem { Label("Training", systemImage: "figure.run") }.tag(1)
                     NutritionView().tabItem { Label("Ernährung", systemImage: "fork.knife") }.tag(2)
-                    HealthView().tabItem { Label("Gesundheit", systemImage: "heart.fill") }.tag(3)
-                    if store.data.profile.showFinance {
-                        FinanceView().tabItem { Label("Finanzen", systemImage: "creditcard.fill") }.tag(4)
-                    }
+                    HealthView().tabItem { Label("Körper", systemImage: "heart.fill") }.tag(3)
+                    MoreView().tabItem { Label("Mehr", systemImage: "ellipsis.circle.fill") }.tag(4)
                 }
                 .sensoryFeedback(.selection, trigger: tab)
                 .environment(\.switchTab, { tab = $0 })
@@ -153,7 +151,7 @@ struct RootView: View {
             let before = plan.log.count
             let snapshot = try? JSONEncoder().encode(plan.runs)
             PlanAdapter.adapt(&plan, workouts: model.workouts, recovery: model.recoveryToday, restrictions: store.restrictions,
-                              hrvLow: model.hrvTrend?.state == .below)
+                              hrvLow: model.hrvTrend?.state == .below, easeReason: model.cycleEaseReason)
             if plan.log.count != before || (try? JSONEncoder().encode(plan.runs)) != snapshot || plan.vdot != store.data.plan?.vdot {
                 let p = plan
                 store.update { $0.plan = p }

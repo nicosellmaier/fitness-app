@@ -2,11 +2,16 @@ import SwiftUI
 import Charts
 import MapKit
 
+enum TrainingDest: Hashable { case running, strength }
+
 struct TrainingView: View {
     @Environment(AppModel.self) private var model
     @Environment(DataStore.self) private var store
-    @AppStorage("trainingSeg") private var segment = 0
+    /// Von außen gesetzt (Heute-Tab, Screenshots): 1 öffnet Laufen, 2 öffnet Kraft
+    @AppStorage("trainingSeg") private var openSection = 0
+    @State private var path: [TrainingDest] = []
     @State private var filter = 0
+    @State private var openSession = false
 
     private var filtered: [WorkoutItem] {
         switch filter {
@@ -17,22 +22,28 @@ struct TrainingView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Bereich", selection: $segment) {
-                        Text("Plan").tag(0)
-                        Text("Kraft").tag(1)
-                        Text("Aktivitäten").tag(2)
+                    if model.usingDemo { DemoBanner() }
+                    restrictionBanner
+                    activeSessionCard
+                    todayCard
+                    HStack(spacing: 10) {
+                        runningTile
+                        strengthTile
+                    }
+                    SectionHeader("Diese Woche")
+                    weekCard
+                    SectionHeader("Verlauf", trailing: "\(model.workouts.count) Einheiten")
+                    Picker("Filter", selection: $filter) {
+                        Text("Alle").tag(0)
+                        Text("Ausdauer").tag(1)
+                        Text("Kraft").tag(2)
                     }
                     .pickerStyle(.segmented)
-                    .sensoryFeedback(.selection, trigger: segment)
-                    restrictionBanner
-                    switch segment {
-                    case 0: PlanOverview()
-                    case 1: StrengthHomeView()
-                    default: activities
-                    }
+                    .sensoryFeedback(.selection, trigger: filter)
+                    list
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -40,6 +51,13 @@ struct TrainingView: View {
             .screenBackground()
             .refreshable { await model.load() }
             .navigationTitle("Training")
+            .navigationDestination(for: TrainingDest.self) { d in
+                switch d {
+                case .running: RunningHomeView()
+                case .strength: StrengthPageView()
+                }
+            }
+            .navigationDestination(isPresented: $openSession) { SessionView() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink { InjuryView() } label: {
@@ -48,36 +66,162 @@ struct TrainingView: View {
                     }
                 }
             }
+            .onAppear { openRequested() }
+            .onChange(of: openSection) { _, _ in openRequested() }
         }
     }
 
-    @ViewBuilder private var restrictionBanner: some View {
-        let r = store.restrictions
-        if segment != 1, r.affectsRunning {
-            NavigationLink { InjuryView() } label: {
-                Hint(icon: r.trainingPaused ? "cross.case.fill" : "bandage.fill",
-                     title: r.trainingPaused ? "Krankheitsmodus" : r.runAllowed ? "Nur lockeres Laufen" : "Laufpause",
-                     text: r.trainingPaused ? "Training pausiert. Der Plan setzt aus und baut sich danach wieder auf."
-                        : r.runAllowed ? "Wegen \(r.reasons.joined(separator: ", ")) werden harte Einheiten durch lockere ersetzt."
-                        : "Wegen \(r.reasons.joined(separator: ", ")) gibt es Alternativtraining statt Laufen.",
-                     color: Theme.bad)
+    private func openRequested() {
+        guard openSection != 0 else { return }
+        path = [openSection == 2 ? .strength : .running]
+        openSection = 0
+    }
+
+    // MARK: Heute
+
+    @ViewBuilder private var activeSessionCard: some View {
+        if let s = store.activeSession {
+            Button { openSession = true } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "timer").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                        .frame(width: 44, height: 44).background(Theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Einheit läuft: \(s.name)").font(.subheadline.weight(.bold))
+                        Text("Seit \(Fmt.time(s.start)) · \(s.doneSets) Sätze erledigt").font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    Chevron()
+                }
+                .padding(14)
+                .background(CardBackground(radius: 20, tint: Theme.accent))
             }
             .buttonStyle(.press)
         }
     }
 
-    @ViewBuilder private var activities: some View {
-        if model.usingDemo { DemoBanner() }
-        weekCard
-        Picker("Filter", selection: $filter) {
-            Text("Alle").tag(0)
-            Text("Ausdauer").tag(1)
-            Text("Kraft").tag(2)
+    @ViewBuilder private var todayCard: some View {
+        let today = Calendar.current.startOfDay(for: .now)
+        let wd = Calendar.current.component(.weekday, from: today)
+        if let plan = store.data.plan {
+            let run = plan.run(on: today)
+            let strengthDay = plan.settings.strengthDays.contains(wd)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("HEUTE").font(.caption.weight(.heavy)).foregroundStyle(Theme.muted)
+                    Spacer()
+                    if let ph = plan.phase(on: today) { Text(ph.name).font(.caption.weight(.semibold)).foregroundStyle(Theme.muted) }
+                }
+                if let run {
+                    NavigationLink { RunDetailView(runId: run.id) } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: run.type.icon).font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                                .frame(width: 44, height: 44).background(run.type.color, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(run.title).font(.headline).multilineTextAlignment(.leading)
+                                Text(run.status == .done ? "Erledigt" : "\(Fmt.num(plan.paces.totalMeters(run.structure) / 1000, 1)) km · ca. \(Fmt.clock(plan.paces.totalSeconds(run.structure)))")
+                                    .font(.caption).foregroundStyle(run.status == .done ? Theme.good : Theme.muted)
+                            }
+                            Spacer()
+                            Image(systemName: run.status == .done ? "checkmark.circle.fill" : "chevron.right")
+                                .foregroundStyle(run.status == .done ? Theme.good : Theme.muted)
+                        }
+                    }
+                    .buttonStyle(.press)
+                }
+                if strengthDay {
+                    if run != nil { Divider().overlay(Theme.line) }
+                    Button { path = [.strength] } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "dumbbell.fill").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                                .frame(width: 44, height: 44).background(Theme.warn, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Krafttag").font(.headline)
+                                Text(run != nil ? "Nach dem Lauf oder mit 6 Stunden Abstand" : "Routine wählen und starten").font(.caption).foregroundStyle(Theme.muted)
+                            }
+                            Spacer()
+                            Chevron()
+                        }
+                    }
+                    .buttonStyle(.press)
+                }
+                if run == nil && !strengthDay {
+                    HStack(spacing: 12) {
+                        Image(systemName: "bed.double.fill").font(.title3).foregroundStyle(Theme.muted).frame(width: 44)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Ruhetag").font(.headline)
+                            Text("Erholung ist Teil des Plans.").font(.caption).foregroundStyle(Theme.muted)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(CardBackground(radius: 22))
         }
-        .pickerStyle(.segmented)
-        .sensoryFeedback(.selection, trigger: filter)
-        .padding(.top, 8)
-        list
+    }
+
+    // MARK: Einstiege
+
+    private var runningTile: some View {
+        let plan = store.data.plan
+        let next = plan?.runs.first { $0.status == .planned && $0.date >= Calendar.current.startOfDay(for: .now) && $0.type != .rest }
+        return Button { path = [.running] } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "figure.run").font(.title2.weight(.bold)).foregroundStyle(Theme.bg)
+                    .frame(width: 44, height: 44)
+                    .background(LinearGradient(colors: [Theme.accent, Theme.good], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                Text("Laufen").font(.headline)
+                if let plan {
+                    Text(plan.settings.raceName.isEmpty ? plan.settings.distance.label : plan.settings.raceName).font(.caption.weight(.semibold)).foregroundStyle(Theme.soft).lineLimit(1)
+                    Text(next.map { "Nächster: \(Fmt.shortDay($0.date))" } ?? "noch \(plan.weeksLeft) Wochen").font(.caption2).foregroundStyle(Theme.muted).lineLimit(1)
+                } else {
+                    Text("Plan erstellen").font(.caption.weight(.semibold)).foregroundStyle(Theme.accent)
+                    Text("5 Vorlagen, auch für Einsteiger").font(.caption2).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(CardBackground(radius: 20))
+        }
+        .buttonStyle(.press)
+    }
+
+    private var strengthTile: some View {
+        let last = store.data.sessions.max { $0.start < $1.start }
+        return Button { path = [.strength] } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "dumbbell.fill").font(.title2.weight(.bold)).foregroundStyle(Theme.bg)
+                    .frame(width: 44, height: 44)
+                    .background(LinearGradient(colors: [Theme.warn, Theme.bad.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                Text("Kraft").font(.headline)
+                if store.data.routines.isEmpty {
+                    Text("Programm wählen").font(.caption.weight(.semibold)).foregroundStyle(Theme.warn)
+                    Text("\(Presets.programs.count) fertige Programme").font(.caption2).foregroundStyle(Theme.muted).lineLimit(1)
+                } else {
+                    Text("\(store.data.routines.count) Routinen").font(.caption.weight(.semibold)).foregroundStyle(Theme.soft)
+                    Text(last.map { "Zuletzt: \(Fmt.shortDay($0.start))" } ?? "Noch keine Einheit").font(.caption2).foregroundStyle(Theme.muted).lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(CardBackground(radius: 20))
+        }
+        .buttonStyle(.press)
+    }
+
+    @ViewBuilder private var restrictionBanner: some View {
+        let r = store.restrictions
+        if !r.isEmpty {
+            NavigationLink { InjuryView() } label: {
+                Hint(icon: r.trainingPaused ? "cross.case.fill" : "bandage.fill",
+                     title: r.trainingPaused ? "Krankheitsmodus" : r.runAllowed ? "Eingeschränkt" : "Laufpause",
+                     text: r.trainingPaused ? "Training pausiert. Der Plan setzt aus und baut sich danach wieder auf."
+                        : "Wegen \(r.allReasons.joined(separator: ", ")). Plan und Kraftübungen werden automatisch angepasst.",
+                     color: Theme.bad)
+            }
+            .buttonStyle(.press)
+        }
     }
 
     private var weekCard: some View {
@@ -86,7 +230,7 @@ struct TrainingView: View {
         let week = model.workouts.filter { $0.start >= weekStart }
         let km = week.compactMap { $0.kind == .endurance ? $0.distance : nil }.reduce(0, +) / 1000
         let time = week.reduce(0) { $0 + $1.duration }
-        let strength = week.filter { $0.kind == .strength }.count
+        let strength = max(week.filter { $0.kind == .strength }.count, store.data.sessions.filter { $0.start >= weekStart }.count)
         let days: [(String, Double, ActivityKind?)] = (0..<7).map { i in
             let d = cal.addDays(i, to: weekStart)
             let ws = model.workouts.filter { cal.isDate($0.start, inSameDayAs: d) }
@@ -96,7 +240,6 @@ struct TrainingView: View {
         let maxMin = max(30, days.map(\.1).max() ?? 30)
         return Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text("DIESE WOCHE").font(.caption.weight(.heavy)).foregroundStyle(Theme.muted)
                 HStack {
                     StatInline(title: "Laufen/Rad", value: Fmt.num(km, 1) + " km")
                     StatInline(title: "Trainingszeit", value: Fmt.hm(time) + " h")
@@ -132,6 +275,41 @@ struct TrainingView: View {
             .padding(.horizontal, 16)
             .background(CardBackground(radius: 22))
         }
+    }
+}
+
+/// Laufen: Plan oder Vorlagen, als eigene Seite
+struct RunningHomeView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(DataStore.self) private var store
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                PlanOverview()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .screenBackground()
+        .navigationTitle(store.data.plan == nil ? "Laufplan" : "Laufen")
+        .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+/// Kraft: Routinen, Programme, Verlauf, als eigene Seite
+struct StrengthPageView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                StrengthHomeView()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .screenBackground(Theme.warn)
+        .navigationTitle("Kraft")
+        .navigationBarTitleDisplayMode(.large)
     }
 }
 

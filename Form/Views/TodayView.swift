@@ -19,14 +19,13 @@ struct TodayView: View {
                     Text(greeting).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                     recoveryCard
                     statsRow
-                    TonightCard()
-                    coachCard
-                    JournalPromptCard()
                     restrictionBanner
+                    cycleCard
+                    JournalPromptCard()
                     planSection
                     nutritionSection
-                    sleepSection
-                    activitiesSection
+                    TonightCard()
+                    coachCard
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -56,6 +55,26 @@ struct TodayView: View {
         let h = Calendar.current.component(.hour, from: .now)
         let hi = h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend"
         return "\(hi), \(name) · " + Fmt.day(.now)
+    }
+
+    @ViewBuilder private var cycleCard: some View {
+        if let c = model.cycle {
+            NavigationLink { CycleView() } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "circle.dotted.circle").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                        .frame(width: 44, height: 44).background(c.phase.color, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Zyklustag \(c.day) · \(c.phase.label)").font(.subheadline.weight(.bold))
+                        Text(c.phase.training).font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    Chevron()
+                }
+                .padding(14)
+                .background(CardBackground(radius: 20))
+            }
+            .buttonStyle(.press)
+        }
     }
 
     // MARK: Coach
@@ -124,7 +143,7 @@ struct TodayView: View {
                 }
             }
             if strengthDay, plan.run(on: today) != nil, store.restrictions.strengthAllowed {
-                Button { trainingSeg = 1; switchTab(1) } label: {
+                Button { trainingSeg = 2; switchTab(1) } label: {
                     Hint(icon: "dumbbell.fill", title: "Heute zusätzlich Kraft", text: "Am besten nach dem Lauf oder mit 6 Stunden Abstand.", color: Theme.warn)
                 }
                 .buttonStyle(.press)
@@ -254,7 +273,7 @@ struct TodayView: View {
         let hrvB = Analytics.baseline(model.days, before: max(0, model.days.count - 1), \.hrv)
         let target = Analytics.strainTarget(model.recoveryToday)
         return HStack(spacing: 8) {
-            NavigationLink { MetricDetailView(kind: .sleep) } label: {
+            NavigationLink { SleepView() } label: {
                 StatTile(title: "Schlaf", value: night.map { Fmt.hm($0.asleep) } ?? "–", unit: "h",
                          note: night.map { "Score \(model.sleepScore($0))" }, noteColor: Theme.sleep)
             }
@@ -278,49 +297,6 @@ struct TodayView: View {
         return (d >= 0 ? "+" : "−") + Fmt.num(abs(d)) + unit + " vs. Ø"
     }
 
-    @ViewBuilder private var sleepSection: some View {
-        SectionHeader("Schlaf")
-        if let n = model.lastNight {
-            NavigationLink { SleepView() } label: {
-                Card {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(Fmt.hm(n.asleep) + " h").font(.title2.weight(.heavy))
-                            Text("\(Fmt.time(n.bedTime)) – \(Fmt.time(n.end))").font(.footnote).foregroundStyle(Theme.muted)
-                            Spacer()
-                            Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
-                        }
-                        StageBar(night: n).frame(height: 10)
-                        let need = model.needTonight
-                        if let p = model.sleepPlan {
-                            Text("Heute Nacht: \(Fmt.hm(need.total)) h Bedarf · ins Bett um \(Fmt.time(p.bedtime))")
-                                .font(.footnote.weight(.semibold)).foregroundStyle(Theme.sleep)
-                        }
-                    }
-                }
-            }
-            .buttonStyle(.press)
-        } else {
-            Card { Text("Keine Schlafdaten von letzter Nacht.").font(.footnote).foregroundStyle(Theme.soft) }
-        }
-    }
-
-    @ViewBuilder private var activitiesSection: some View {
-        SectionHeader("Letzte Aktivitäten")
-        if model.workouts.isEmpty {
-            Card { Text("Noch keine Workouts aufgezeichnet.").font(.footnote).foregroundStyle(Theme.soft) }
-        } else {
-            VStack(spacing: 0) {
-                ForEach(Array(model.workouts.prefix(4))) { w in
-                    NavigationLink { WorkoutDetailView(item: w) } label: { WorkoutRow(item: w) }
-                        .buttonStyle(.press)
-                    if w.id != model.workouts.prefix(4).last?.id { Divider().overlay(Theme.line) }
-                }
-            }
-            .padding(.horizontal, 16)
-            .background(CardBackground(radius: 22))
-        }
-    }
 }
 
 struct StageBar: View {

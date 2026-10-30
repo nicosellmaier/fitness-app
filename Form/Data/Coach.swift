@@ -105,6 +105,9 @@ enum CoachContext {
         L.append("Heute: \(Fmt.day(.now)), \(Fmt.time(.now)) Uhr.")
         L.append("Profil: \(p.sex.label), \(Int(model.age)) Jahre, \(Int(p.heightCm)) cm, \(Fmt.num(model.weightKg ?? p.weightKg, 1)) kg, Ernährungsziel \(p.goal.label), Maximalpuls \(Int(model.maxHR)).")
         if model.usingDemo { L.append("Hinweis: Die App zeigt gerade Beispieldaten, keine echten Messwerte.") }
+        if let c = model.cycle {
+            L.append("Zyklus: Tag \(c.day) von etwa \(c.length), \(c.phase.label). Nächste Periode voraussichtlich in \(c.daysToPeriod) Tagen. Erholung und Monitor sind um den Zykluseffekt bereinigt. Berücksichtige die Phase bei Training, Essen (Eisen in der Periode, mehr Hunger vor der Periode) und Schlaf.")
+        }
 
         if let r = model.recoveryToday {
             L.append("\nERHOLUNG HEUTE: \(r.score)/100 (\(r.label)). \(r.text)")
