@@ -10,6 +10,8 @@ final class AppModel {
     var vo2: [Point] = []
     var activeKcalToday: Double = 0
     var weightKg: Double?
+    /// Gewichtsverlauf (365 Tage, ein Wert pro Tag)
+    var weights: [Point] = []
     var leanMassKg: Double?
     var heightM: Double?
     /// Pulswerte der letzten 14 Tage (Belastung über den Tag, Stress)
@@ -219,6 +221,13 @@ final class AppModel {
             workouts = ws.map { health.item(from: $0) }
             activeKcalToday = (try? await health.sum(.activeEnergyBurned, unit: .kilocalorie(), from: cal.dayStart(.now))) ?? 0
             weightKg = try? await health.latest(.bodyMass, unit: .gramUnit(with: .kilo))
+            if let ws = try? await health.quantity(.bodyMass, from: cal.addDays(-365, to: today)) {
+                var byDay: [Date: Double] = [:]
+                for q in ws.sorted(by: { $0.startDate < $1.startDate }) {
+                    byDay[cal.startOfDay(for: q.startDate)] = q.quantity.doubleValue(for: .gramUnit(with: .kilo))
+                }
+                weights = byDay.sorted { $0.key < $1.key }.map { Point(date: $0.key, value: $0.value) }
+            }
             leanMassKg = try? await health.latest(.leanBodyMass, unit: .gramUnit(with: .kilo), days: 365)
             heightM = try? await health.latest(.height, unit: .meter(), days: 3650)
         } catch {
@@ -244,6 +253,13 @@ final class AppModel {
         rhrByDay = rbd
         activeKcalToday = 420
         weightKg = nil
+        // Beispiel: langsam fallendes Gewicht mit Tagesschwankung, jeden zweiten Tag gewogen
+        let cal = Calendar.current
+        weights = stride(from: 120, through: 0, by: -2).map { ago in
+            let d = cal.addDays(-ago, to: cal.startOfDay(for: .now))
+            let wobble = sin(Double(ago) * 1.7) * 0.45 + cos(Double(ago) * 0.6) * 0.25
+            return Point(date: d, value: 77.4 - Double(120 - ago) * 0.018 + wobble)
+        }
         let tomorrow = Calendar.current.addDays(1, to: Calendar.current.startOfDay(for: .now))
         if !SleepPlanner.isFreeDay(tomorrow) {
             tomorrowEvent = CalendarEvent(title: "Vorlesung", start: tomorrow.addingTimeInterval(8 * 3600 + 15 * 60))

@@ -22,15 +22,21 @@ struct HealthView: View {
                     JournalCard()
                     SectionHeader("Trends", trailing: "30 Tage")
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                        TrendTile(title: "HRV", unit: "ms", points: model.series(\.hrv), color: Theme.good, digits: 0, higherIsBetter: true)
-                        TrendTile(title: "Ruhepuls", unit: "bpm", points: model.series(\.rhr), color: Theme.good, digits: 0, higherIsBetter: false)
-                        TrendTile(title: "VO2max", unit: "", points: model.vo2, color: Theme.accent, digits: 1, higherIsBetter: true)
-                        TrendTile(title: "Atemfrequenz", unit: "/min", points: model.series(\.resp), color: Theme.sleep, digits: 1, higherIsBetter: nil)
-                        TrendTile(title: "Schritte", unit: "", points: model.series(\.steps), color: Theme.accent, digits: 0, higherIsBetter: true)
-                        TrendTile(title: "Trainingsminuten", unit: "min", points: model.series(\.exerciseMin), color: Theme.warn, digits: 0, higherIsBetter: true)
+                        ForEach(trendKinds) { k in
+                            NavigationLink { MetricDetailView(kind: k) } label: {
+                                TrendTile(title: k.title, unit: k.unit, points: Array(model.points(k).suffix(30)), color: k.color,
+                                          digits: k.digits, higherIsBetter: k.higherIsBetter, format: k.format)
+                            }
+                            .buttonStyle(.press)
+                        }
                     }
                     SectionHeader("Recovery-Verlauf", trailing: "14 Tage")
-                    recoveryChart
+                    NavigationLink { MetricDetailView(kind: .recovery) } label: { recoveryChart }
+                        .buttonStyle(.press)
+                    SectionHeader("Letzte Tage")
+                    recentDays
+                    SectionHeader("Alle Messwerte")
+                    AllMetricsCard()
                     SectionHeader("Verletzung & Krankheit")
                     injuryLink
                 }
@@ -89,8 +95,52 @@ struct HealthView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         }
+    }
+
+    private var trendKinds: [MetricKind] {
+        [.hrv, .rhr, .sleep, .vo2, .steps, .exercise, .resp, .weight].filter { !model.points($0).isEmpty }
+    }
+
+    /// Die letzten 7 Tage, jeweils zum Aufklappen
+    private var recentDays: some View {
+        let cal = Calendar.current
+        let n = model.days.count
+        let idx = Array((max(0, n - 7)..<n).reversed())
+        return VStack(spacing: 0) {
+            ForEach(idx, id: \.self) { i in
+                let d = model.days[i]
+                let r = i == n - 1 ? model.recoveryToday : model.recovery(at: i)
+                NavigationLink { DayDetailView(day: d.day) } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Ring(progress: Double(r?.score ?? 0) / 100, color: r?.color ?? Theme.muted, lineWidth: 4)
+                            Text(r.map { "\($0.score)" } ?? "–").font(.caption.weight(.heavy))
+                        }
+                        .frame(width: 38, height: 38)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(cal.isDateInToday(d.day) ? "Heute" : cal.isDateInYesterday(d.day) ? "Gestern" : Fmt.shortDay(d.day))
+                                .font(.subheadline.weight(.bold))
+                            Text([d.sleep.map { Fmt.hm($0.asleep) + " h Schlaf" }, d.hrv.map { "HRV " + Fmt.num($0) }]
+                                .compactMap { $0 }.joined(separator: " · "))
+                                .font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(Fmt.num(model.strain(on: d.day).score, 1)).font(.subheadline.weight(.heavy)).foregroundStyle(Theme.warn)
+                            Text("Belastung").font(.caption2).foregroundStyle(Theme.muted)
+                        }
+                        Chevron()
+                    }
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.press)
+                if i != idx.last { Divider().overlay(Theme.line) }
+            }
+        }
+        .padding(.horizontal, 14)
+        .background(CardBackground(radius: 20))
     }
 
     private var recoveryChart: some View {
@@ -138,9 +188,9 @@ extension HealthView {
                 Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
             }
             .padding(14)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(CardBackground(radius: 20))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 }
 
@@ -151,12 +201,18 @@ struct TrendTile: View {
     let color: Color
     let digits: Int
     let higherIsBetter: Bool?
+    var format: ((Double) -> String)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+            HStack {
+                Text(title).font(.caption.weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1)
+                Spacer(minLength: 0)
+                Chevron()
+            }
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(points.last.map { Fmt.num($0.value, digits) } ?? "–").font(.title3.weight(.heavy))
+                Text(points.last.map { format?($0.value) ?? Fmt.num($0.value, digits) } ?? "–").font(.title3.weight(.heavy))
+                    .contentTransition(.numericText())
                 if !unit.isEmpty { Text(unit).font(.caption).foregroundStyle(Theme.muted) }
             }
             if points.count > 1 {
@@ -164,6 +220,9 @@ struct TrendTile: View {
                     LineMark(x: .value("Tag", p.date), y: .value(title, p.value))
                         .interpolationMethod(.catmullRom)
                         .foregroundStyle(color)
+                    AreaMark(x: .value("Tag", p.date), yStart: .value("min", lowest), yEnd: .value(title, p.value))
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(LinearGradient(colors: [color.opacity(0.25), color.opacity(0)], startPoint: .top, endPoint: .bottom))
                 }
                 .chartYScale(domain: .automatic(includesZero: false))
                 .chartXAxis(.hidden)
@@ -174,8 +233,10 @@ struct TrendTile: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(CardBackground(radius: 18))
     }
+
+    private var lowest: Double { points.map(\.value).min() ?? 0 }
 
     private var change: Double? {
         guard points.count >= 6 else { return nil }
@@ -187,7 +248,7 @@ struct TrendTile: View {
     private var trendText: String {
         guard let c = change else { return "zu wenig Daten" }
         if abs(c) < 0.5 * pow(10, -Double(digits)) * 2 { return "stabil" }
-        return (c > 0 ? "steigend" : "fallend") + " (" + (c > 0 ? "+" : "−") + Fmt.num(abs(c), digits) + ")"
+        return (c > 0 ? "steigend" : "fallend") + " (" + (c > 0 ? "+" : "−") + (format?(abs(c)) ?? Fmt.num(abs(c), digits)) + ")"
     }
 
     private var trendColor: Color {

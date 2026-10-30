@@ -1,26 +1,16 @@
 import SwiftUI
 import WorkoutKit
 
-// MARK: Planübersicht
+// MARK: Laufplan-Vorlagen
 
-struct PlanOverview: View {
-    @Environment(DataStore.self) private var store
-    @Environment(AppModel.self) private var model
+struct PlanPresetList: View {
     @State private var showSetup = false
     @State private var presetChoice: RunPreset?
-    @State private var sending = false
-    @State private var sendResult: String?
-    @State private var confirmDelete = false
 
     var body: some View {
-        if let plan = store.data.plan {
-            content(plan)
-                .sheet(isPresented: $showSetup) { PlanSetupView(existing: plan.settings) }
-        } else {
-            empty
-                .sheet(isPresented: $showSetup) { PlanSetupView(existing: nil) }
-                .sheet(item: $presetChoice) { p in PlanSetupView(existing: nil, preset: p) }
-        }
+        empty
+            .sheet(isPresented: $showSetup) { PlanSetupView(existing: nil) }
+            .sheet(item: $presetChoice) { p in PlanSetupView(existing: nil, preset: p) }
     }
 
     private var empty: some View {
@@ -53,15 +43,37 @@ struct PlanOverview: View {
                         Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
                     }
                     .padding(14)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .background(CardBackground(radius: 20))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
             Button { showSetup = true } label: {
                 Text("Eigenes Ziel festlegen").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(CardBackground(radius: 14))
             }
+            .buttonStyle(.press)
             .padding(.top, 4)
+        }
+    }
+
+}
+
+// MARK: Planübersicht
+
+struct PlanOverview: View {
+    @Environment(DataStore.self) private var store
+    @Environment(AppModel.self) private var model
+    @State private var showSetup = false
+    @State private var sending = false
+    @State private var sendResult: String?
+    @State private var confirmDelete = false
+
+    var body: some View {
+        if let plan = store.data.plan {
+            content(plan)
+                .sheet(isPresented: $showSetup) { PlanSetupView(existing: plan.settings) }
+        } else {
+            PlanPresetList()
         }
     }
 
@@ -98,7 +110,7 @@ struct PlanOverview: View {
                 }
             }
             .padding(18)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .background(CardBackground(radius: 26))
 
             if let last = plan.log.first, Calendar.current.dateComponents([.day], from: last.date, to: .now).day ?? 9 < 3 {
                 Hint(icon: "arrow.triangle.2.circlepath", title: "Plan live angepasst", text: last.text, color: Theme.sleep)
@@ -115,7 +127,7 @@ struct PlanOverview: View {
                 } label: {
                     Label(sending ? "Wird übertragen …" : "Nächste 7 Tage auf die Watch", systemImage: "applewatch")
                         .font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(CardBackground(radius: 16))
                 }
                 .disabled(sending)
                 if let r = sendResult { Text(r).font(.caption).foregroundStyle(Theme.soft).padding(.horizontal, 4) }
@@ -160,11 +172,11 @@ struct PlanOverview: View {
             HStack(spacing: 8) {
                 Button { showSetup = true } label: {
                     Text("Plan ändern").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(CardBackground(radius: 14))
                 }
                 Button(role: .destructive) { confirmDelete = true } label: {
                     Text("Plan löschen").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(CardBackground(radius: 14))
                 }
             }
             .padding(.top, 8)
@@ -241,7 +253,7 @@ struct WeekList: View {
                                    subtitle: subtitle(run, paces), color: run.type.color, status: run.status,
                                    adjusted: run.adjusted != nil, strength: strength)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                     } else {
                         DayRow(day: day, isToday: isToday, past: past, title: strength ? "Krafttraining" : "Ruhetag",
                                subtitle: strength ? "Routine im Kraft-Tab" : "Erholung gehört zum Training",
@@ -252,7 +264,7 @@ struct WeekList: View {
             }
         }
         .padding(.horizontal, 14)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 
     private func subtitle(_ r: PlannedRun, _ p: Paces) -> String {
@@ -335,7 +347,7 @@ struct UpcomingWeeks: View {
                                     Image(systemName: "chevron.right").font(.caption2).foregroundStyle(Theme.muted)
                                 }
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.press)
                         }
                     }
                     .padding(.top, 8)
@@ -348,7 +360,7 @@ struct UpcomingWeeks: View {
                     }
                 }
                 .padding(14)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(CardBackground(radius: 18))
             }
         }
     }
@@ -413,7 +425,7 @@ struct RunDetailView: View {
                     } label: {
                         Text(run.status == .missed ? "Doch wieder einplanen" : "Diese Einheit auslassen").font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .background(CardBackground(radius: 14))
                     }
                 }
             }
@@ -565,7 +577,7 @@ struct PlanSetupView: View {
                                             .background(isActive(p) ? Theme.accent : Theme.card2, in: Capsule())
                                             .foregroundStyle(isActive(p) ? Theme.bg : Theme.text)
                                     }
-                                    .buttonStyle(.plain)
+                                    .buttonStyle(.press)
                                 }
                             }
                             .padding(.vertical, 2)
@@ -686,7 +698,7 @@ struct PlanSetupView: View {
                         .background(on ? Theme.accent : Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .foregroundStyle(on ? Theme.bg : Theme.text)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
         }
     }

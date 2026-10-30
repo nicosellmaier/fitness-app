@@ -93,7 +93,7 @@ struct CoachView: View {
                 .padding(.top, 4)
         }
         .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 
     private var setupHint: some View {
@@ -102,7 +102,7 @@ struct CoachView: View {
                  text: "Der Coach läuft über deinen eigenen Cloudflare Worker mit der Claude API. Tippe hier, um Adresse und App-Token einzutragen. Anleitung: docs/KI-COACH.md im Repo.",
                  color: Theme.sleep)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 
     private var inputBar: some View {
@@ -115,7 +115,7 @@ struct CoachView: View {
                                 Text(q).font(.caption.weight(.semibold)).padding(.horizontal, 12).padding(.vertical, 7)
                                     .background(Theme.card2, in: Capsule())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.press)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -126,7 +126,7 @@ struct CoachView: View {
                     .lineLimit(1...5)
                     .focused($focused)
                     .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .background(CardBackground(radius: 20))
                 Button {
                     if busy { task?.cancel(); busy = false } else { send(input) }
                 } label: {
@@ -207,7 +207,7 @@ struct Bubble: View {
                             .padding(.horizontal, 10).padding(.vertical, 7)
                             .background(Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.press)
                     .disabled(onRemember == nil)
                 }
             }
@@ -255,7 +255,7 @@ struct PromptList: View {
                     .padding(.horizontal, 12).padding(.vertical, 10)
                     .background(Theme.card2, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
         }
     }

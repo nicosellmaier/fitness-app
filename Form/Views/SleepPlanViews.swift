@@ -38,11 +38,11 @@ struct TonightCard: View {
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
                 AlarmButtonRow(plan: p)
             }
             .padding(16)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(CardBackground(radius: 22))
         }
     }
 }
@@ -157,7 +157,7 @@ struct SleepPlanView: View {
                 NavigationLink { SleepPrefsView() } label: {
                     Label("Weckzeiten, Kalender und Erinnerungen", systemImage: "slider.horizontal.3")
                         .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(CardBackground(radius: 14))
                 }
                 .padding(.top, 6)
             }
@@ -189,7 +189,7 @@ struct SleepPlanView: View {
             .foregroundStyle(Theme.soft)
         }
         .padding(18)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(CardBackground(radius: 26))
     }
 
     private func mini(_ t: String, _ v: String) -> some View {
@@ -293,7 +293,7 @@ struct PlanTimeline: View {
             }
         }
         .padding(14)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 }
 

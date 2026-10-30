@@ -36,7 +36,7 @@ struct StressCard: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 }
 
@@ -103,9 +103,9 @@ struct StressView: View {
                             Image(systemName: "play.fill").foregroundStyle(Theme.accent)
                         }
                         .padding(12)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .background(CardBackground(radius: 18))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.press)
                 }
 
                 if week.count >= 2 {

@@ -24,9 +24,9 @@ struct StrengthHomeView: View {
                         Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
                     }
                     .padding(14)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .background(CardBackground(radius: 20))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
 
             let r = store.restrictions
@@ -38,7 +38,7 @@ struct StrengthHomeView: View {
                             : "Krafttraining ist pausiert, bis du dich gesund meldest.",
                          color: Theme.bad)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
 
             HStack {
@@ -64,9 +64,9 @@ struct StrengthHomeView: View {
                     Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
                 }
                 .padding(14)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .background(CardBackground(radius: 20))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
 
             ForEach(store.data.routines) { routine in
                 RoutineCard(routine: routine, onEdit: { editing = routine }, onStart: { start(routine) })
@@ -78,12 +78,12 @@ struct StrengthHomeView: View {
                     let recent = Array(store.data.sessions.sorted { $0.start > $1.start }.prefix(8))
                     ForEach(recent) { s in
                         NavigationLink { SessionDetailView(session: s) } label: { SessionRow(session: s) }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.press)
                         if s.id != recent.last?.id { Divider().overlay(Theme.line) }
                     }
                 }
                 .padding(.horizontal, 16)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(CardBackground(radius: 22))
 
                 SectionHeader("Fortschritt")
                 ProgressList()
@@ -196,12 +196,12 @@ struct ProgressList: View {
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
                 if id != ids.last { Divider().overlay(Theme.line) }
             }
         }
         .padding(.horizontal, 16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 }
 
@@ -246,7 +246,7 @@ struct SessionView: View {
                     Button { picker = .add } label: {
                         Label("Übung hinzufügen", systemImage: "plus")
                             .font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 14)
-                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(CardBackground(radius: 16))
                     }
                     Button { confirmFinish = true } label: {
                         Text("Training beenden").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 15)
@@ -440,17 +440,28 @@ struct ExerciseCard: View {
                             .padding(.vertical, 9)
                             .background(Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
                         Button {
-                            set.done.toggle()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) { set.done.toggle() }
                             if set.done { onSetDone(idx) }
                         } label: {
                             Image(systemName: set.done ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 28, weight: .semibold))
                                 .foregroundStyle(set.done ? Theme.accent : Theme.muted)
+                                .contentTransition(.symbolEffect(.replace))
+                                .symbolEffect(.bounce, value: set.done)
                                 .frame(width: 44, height: 44)
                         }
+                        .buttonStyle(.press)
+                        .sensoryFeedback(trigger: set.done) { _, done in done ? .success : .selection }
                         .accessibilityLabel(set.done ? "Satz erledigt" : "Satz abhaken")
                     }
                     .opacity(set.done ? 0.75 : 1)
+                    .background(alignment: .leading) {
+                        if set.done {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.accent.opacity(0.07))
+                                .padding(-4)
+                                .transition(.opacity)
+                        }
+                    }
                 }
             }
         }

@@ -8,7 +8,7 @@ struct ProgramLibraryView: View {
                     .font(.subheadline).foregroundStyle(Theme.soft).padding(.horizontal, 4)
                 ForEach(Presets.programs) { p in
                     NavigationLink { ProgramDetailView(program: p) } label: { ProgramCard(program: p) }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                 }
             }
             .padding(.horizontal, 16)
@@ -45,7 +45,7 @@ struct ProgramCard: View {
             }
         }
         .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 
     private func chip(_ icon: String, _ t: String) -> some View {
@@ -91,7 +91,7 @@ struct ProgramDetailView: View {
                         .foregroundStyle(Theme.bg)
                         .contentTransition(.symbolEffect(.replace))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
                 .disabled(added)
                 .sensoryFeedback(.success, trigger: added)
             }
@@ -154,7 +154,7 @@ struct ProfileSetupView: View {
                     Text(page == 0 ? "Weiter" : "Los geht's").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
                         .background(Theme.accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous)).foregroundStyle(Theme.bg)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
                 .sensoryFeedback(.impact(weight: .medium), trigger: page)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 12)

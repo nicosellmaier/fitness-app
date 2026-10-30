@@ -16,7 +16,7 @@ struct HealthMonitorCard: View {
                          text: "\(outside.map(\.name).joined(separator: ", ")). Das passiert oft vor einem Infekt, nach Alkohol oder bei Schlafmangel. Heute lieber locker. Fühlst du dich krank, tippe hier für den Krankheitsmodus.",
                          color: Theme.warn)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
             Card {
                 VStack(spacing: 0) {
@@ -31,6 +31,7 @@ struct HealthMonitorCard: View {
                         Text("Nach einer Nacht mit der Watch erscheinen hier deine Nachtwerte.").font(.footnote).foregroundStyle(Theme.soft)
                     }
                     ForEach(vitals) { v in
+                        NavigationLink { if let k = v.kind { MetricDetailView(kind: k) } } label: {
                         HStack(spacing: 10) {
                             Image(systemName: v.icon).font(.footnote.weight(.bold)).foregroundStyle(v.outside ? Theme.warn : Theme.good).frame(width: 22)
                             VStack(alignment: .leading, spacing: 1) {
@@ -39,8 +40,11 @@ struct HealthMonitorCard: View {
                             }
                             Spacer()
                             Text(v.value).font(.subheadline.weight(.heavy)).foregroundStyle(v.outside ? Theme.warn : Theme.text)
+                            Chevron()
                         }
                         .padding(.vertical, 8)
+                        }
+                        .buttonStyle(.press)
                         if v.id != vitals.last?.id { Divider().overlay(Theme.line) }
                     }
                 }
@@ -56,6 +60,12 @@ struct HRVTrendCard: View {
 
     var body: some View {
         if let t = model.hrvTrend {
+            NavigationLink { MetricDetailView(kind: .hrv) } label: { card(t) }
+                .buttonStyle(.press)
+        }
+    }
+
+    private func card(_ t: HRVTrend) -> some View {
             Card {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .firstTextBaseline) {
@@ -65,6 +75,7 @@ struct HRVTrendCard: View {
                         }
                         Spacer()
                         Badge(text: t.label.uppercased(), color: t.color)
+                        Chevron()
                     }
                     Chart {
                         RectangleMark(xStart: .value("von", t.series.first?.date ?? .now), xEnd: .value("bis", t.series.last?.date ?? .now),
@@ -82,9 +93,9 @@ struct HRVTrendCard: View {
                     .chartYScale(domain: .automatic(includesZero: false))
                     .frame(height: 130)
                     Text(explanation(t)).font(.caption).foregroundStyle(Theme.soft).fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
                 }
             }
-        }
     }
 
     private func explanation(_ t: HRVTrend) -> String {
@@ -128,7 +139,7 @@ struct StrainDetailView: View {
                     }
                 }
                 .padding(18)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .background(CardBackground(radius: 26))
 
                 HStack(spacing: 8) {
                     StatTile(title: "Herz-Kreislauf", value: Fmt.num(today.cardio), unit: "TRIMP")

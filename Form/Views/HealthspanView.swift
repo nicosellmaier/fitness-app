@@ -32,7 +32,7 @@ struct HealthspanCard: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 
     private func deltaText(_ h: Healthspan) -> String {
@@ -82,7 +82,7 @@ struct HealthspanView: View {
                         }
                     }
                     .padding(.horizontal, 14)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .background(CardBackground(radius: 22))
                     SectionHeader("Diese Woche")
                     WeeklyGoals()
                     method(h)
@@ -124,7 +124,7 @@ struct HealthspanView: View {
             Text("Basiert auf \(h.daysOfData) Tagen. Aktualisiert sich täglich.").font(.caption).foregroundStyle(Theme.muted)
         }
         .padding(18)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(CardBackground(radius: 26))
     }
 
     private func paceText(_ p: Double) -> String {
@@ -163,7 +163,7 @@ struct MetricYearsRow: View {
                 }
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
             YearsBar(years: metric.years).frame(height: 6).padding(.leading, 32)
             if open {
                 Text(metric.tip).font(.caption).foregroundStyle(Theme.soft).padding(.leading, 32).fixedSize(horizontal: false, vertical: true)
@@ -250,6 +250,6 @@ struct GoalRow: View {
             Text("\(Fmt.num(value, digits)) / \(Fmt.num(goal, digits)) \(unit)").font(.footnote.weight(.heavy)).monospacedDigit()
         }
         .padding(12)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(CardBackground(radius: 18))
     }
 }

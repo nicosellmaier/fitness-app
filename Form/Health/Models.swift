@@ -221,6 +221,15 @@ struct Recovery {
     let text: String
     let hrvDelta: Double?
     let rhrDelta: Double?
+    /// Beitrag jedes Messwerts zum Score (Punkte, Basis 55)
+    var parts: [RecoveryPart] = []
+}
+
+struct RecoveryPart: Identifiable {
+    var id: String { name }
+    let name: String
+    let points: Double
+    let detail: String
 }
 
 struct SleepNeed {

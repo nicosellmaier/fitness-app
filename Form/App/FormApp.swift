@@ -74,6 +74,20 @@ struct RootView: View {
                 NavigationStack { SleepPlanView() }
             } else if shot == "strain" {
                 NavigationStack { StrainDetailView() }
+            } else if shot == "programs" {
+                NavigationStack { ProgramLibraryView() }
+            } else if shot == "program", let p = Presets.programs.first(where: { $0.id == "lower_focus" }) {
+                NavigationStack { ProgramDetailView(program: p) }
+            } else if shot == "c25k" {
+                PlanSetupView(existing: nil, preset: RunPreset.all[0])
+            } else if shot == "planpresets" {
+                NavigationStack { ScrollView { PlanPresetList().padding(.horizontal, 16) }.screenBackground().navigationTitle("Laufplan") }
+            } else if shot == "profile" {
+                ProfileSetupView()
+            } else if shot.hasPrefix("metric-"), let k = MetricKind(rawValue: String(shot.dropFirst(7))) {
+                NavigationStack { MetricDetailView(kind: k) }
+            } else if shot == "day" {
+                NavigationStack { DayDetailView(day: .now) }
             } else if shot == "widgets" || shot == "widgets2" {
                 NavigationStack { WidgetGallery(page: shot == "widgets" ? 0 : 1) }
             } else {

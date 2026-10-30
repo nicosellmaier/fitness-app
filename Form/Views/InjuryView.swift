@@ -81,7 +81,7 @@ struct InjuryView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(draft.severity == lvl ? Theme.warn : .clear, lineWidth: 1.5))
                                 .foregroundStyle(draft.severity == lvl ? Theme.warn : Theme.text)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                     }
                 }
                 Stepper("Pause geplant: \(draft.expectedDays) Tage", value: $draft.expectedDays, in: 2...90, step: draft.expectedDays < 14 ? 1 : 7)
@@ -259,7 +259,7 @@ struct BodyPicker: View {
                                 .frame(width: 34, height: 34)
                                 .contentShape(Circle())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                         .accessibilityLabel(spot.0.label)
                         .position(x: spot.1.x * w, y: spot.1.y * h)
                     }
@@ -273,7 +273,7 @@ struct BodyPicker: View {
             }
         }
         .padding(14)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 }
 
@@ -290,7 +290,7 @@ struct FlowChips: View {
                         .overlay(Capsule().stroke(r == selected ? Theme.bad : .clear, lineWidth: 1.2))
                         .foregroundStyle(r == selected ? Theme.bad : Theme.text)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
         }
     }

@@ -16,7 +16,7 @@ struct TodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if model.usingDemo { DemoBanner() }
-                    Text(Fmt.day(.now)).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
+                    Text(greeting).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                     recoveryCard
                     statsRow
                     TonightCard()
@@ -50,6 +50,14 @@ struct TodayView: View {
         }
     }
 
+    private var greeting: String {
+        let name = store.data.profile.name
+        guard !name.isEmpty else { return Fmt.day(.now) }
+        let h = Calendar.current.component(.hour, from: .now)
+        let hi = h < 11 ? "Guten Morgen" : h < 18 ? "Hallo" : "Guten Abend"
+        return "\(hi), \(name) · " + Fmt.day(.now)
+    }
+
     // MARK: Coach
 
     private var coachCard: some View {
@@ -65,9 +73,9 @@ struct TodayView: View {
                 Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
             }
             .padding(14)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(CardBackground(radius: 20))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 
     // MARK: Einschränkungen
@@ -80,7 +88,7 @@ struct TodayView: View {
                      title: r.trainingPaused ? "Krankheitsmodus aktiv" : "Eingeschränkt: " + r.allReasons.joined(separator: ", "),
                      text: restrictionText(r), color: Theme.bad)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         }
     }
 
@@ -119,7 +127,7 @@ struct TodayView: View {
                 Button { trainingSeg = 1; switchTab(1) } label: {
                     Hint(icon: "dumbbell.fill", title: "Heute zusätzlich Kraft", text: "Am besten nach dem Lauf oder mit 6 Stunden Abstand.", color: Theme.warn)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
             }
         } else {
             SectionHeader("Training heute")
@@ -127,7 +135,7 @@ struct TodayView: View {
                 Hint(icon: "flag.checkered", title: "Noch kein Trainingsplan",
                      text: "Ziel und Datum eingeben, die App baut den Plan und passt ihn jeden Tag an deine Erholung an.", color: Theme.accent)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         }
     }
 
@@ -153,7 +161,7 @@ struct TodayView: View {
                         .foregroundStyle(run.status == .done ? Theme.good : Theme.muted)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
             if let a = run.adjusted {
                 Label(a, systemImage: "arrow.triangle.2.circlepath").font(.caption.weight(.semibold)).foregroundStyle(Theme.sleep)
             }
@@ -171,7 +179,7 @@ struct TodayView: View {
             }
         }
         .padding(16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 
     // MARK: Ernährung
@@ -196,30 +204,39 @@ struct TodayView: View {
                 Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
             }
             .padding(14)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(CardBackground(radius: 20))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 
     @ViewBuilder private var recoveryCard: some View {
         if let r = model.recoveryToday {
-            HStack(spacing: 18) {
-                ZStack {
-                    Ring(progress: Double(r.score) / 100, color: r.color, lineWidth: 13)
-                    VStack(spacing: 0) {
-                        Text("\(r.score)").font(.system(size: 36, weight: .heavy))
-                        Text("Erholung").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+            NavigationLink { DayDetailView(day: .now) } label: {
+                HStack(spacing: 18) {
+                    ZStack {
+                        Ring(progress: Double(r.score) / 100, color: r.color, lineWidth: 13)
+                        VStack(spacing: 0) {
+                            Text("\(r.score)").font(.system(size: 36, weight: .heavy)).contentTransition(.numericText())
+                            Text("Erholung").font(.caption.weight(.semibold)).foregroundStyle(Theme.muted)
+                        }
                     }
+                    .frame(width: 124, height: 124)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(r.label).font(.headline.weight(.bold)).foregroundStyle(r.color)
+                        Text(r.text).font(.footnote).foregroundStyle(Theme.soft).fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
+                        HStack(spacing: 4) {
+                            Text("Details").font(.caption.weight(.bold))
+                            Image(systemName: "chevron.right").font(.caption2.weight(.bold))
+                        }
+                        .foregroundStyle(r.color)
+                    }
+                    Spacer(minLength: 0)
                 }
-                .frame(width: 124, height: 124)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(r.label).font(.headline.weight(.bold)).foregroundStyle(r.color)
-                    Text(r.text).font(.footnote).foregroundStyle(Theme.soft).fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 0)
+                .padding(20)
+                .background(CardBackground(radius: 26, tint: r.color))
             }
-            .padding(20)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .buttonStyle(.press)
         } else {
             Card {
                 VStack(alignment: .leading, spacing: 6) {
@@ -237,15 +254,21 @@ struct TodayView: View {
         let hrvB = Analytics.baseline(model.days, before: max(0, model.days.count - 1), \.hrv)
         let target = Analytics.strainTarget(model.recoveryToday)
         return HStack(spacing: 8) {
-            StatTile(title: "Schlaf", value: night.map { Fmt.hm($0.asleep) } ?? "–", unit: "h",
-                     note: night.map { "Score \(model.sleepScore($0))" }, noteColor: Theme.sleep)
-            StatTile(title: "HRV", value: t?.hrv.map { Fmt.num($0) } ?? "–", unit: "ms",
-                     note: deltaText(t?.hrv, hrvB?.mean, unit: ""), noteColor: (t?.hrv ?? 0) >= (hrvB?.mean ?? 0) ? Theme.good : Theme.warn)
+            NavigationLink { MetricDetailView(kind: .sleep) } label: {
+                StatTile(title: "Schlaf", value: night.map { Fmt.hm($0.asleep) } ?? "–", unit: "h",
+                         note: night.map { "Score \(model.sleepScore($0))" }, noteColor: Theme.sleep)
+            }
+            .buttonStyle(.press)
+            NavigationLink { MetricDetailView(kind: .hrv) } label: {
+                StatTile(title: "HRV", value: t?.hrv.map { Fmt.num($0) } ?? "–", unit: "ms",
+                         note: deltaText(t?.hrv, hrvB?.mean, unit: ""), noteColor: (t?.hrv ?? 0) >= (hrvB?.mean ?? 0) ? Theme.good : Theme.warn)
+            }
+            .buttonStyle(.press)
             NavigationLink { StrainDetailView() } label: {
                 StatTile(title: "Belastung", value: Fmt.num(model.strainToday, 1), unit: "/21",
                          note: "Ziel \(Int(target.lowerBound))–\(Int(target.upperBound))", noteColor: Theme.warn)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         }
     }
 
@@ -276,7 +299,7 @@ struct TodayView: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         } else {
             Card { Text("Keine Schlafdaten von letzter Nacht.").font(.footnote).foregroundStyle(Theme.soft) }
         }
@@ -290,12 +313,12 @@ struct TodayView: View {
             VStack(spacing: 0) {
                 ForEach(Array(model.workouts.prefix(4))) { w in
                     NavigationLink { WorkoutDetailView(item: w) } label: { WorkoutRow(item: w) }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                     if w.id != model.workouts.prefix(4).last?.id { Divider().overlay(Theme.line) }
                 }
             }
             .padding(.horizontal, 16)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(CardBackground(radius: 22))
         }
     }
 }

@@ -50,7 +50,7 @@ struct SleepView: View {
                 .disabled(current >= nights.count - 1)
                 .accessibilityLabel("Nächste Nacht")
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
         .foregroundStyle(Theme.text)
     }
 
@@ -82,7 +82,7 @@ struct SleepView: View {
             }
         }
         .padding(18)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(CardBackground(radius: 26))
     }
 
     private func miniStat(_ t: String, _ v: String) -> some View {
@@ -212,7 +212,7 @@ struct SleepView: View {
                       badge: tempBadge(d?.temp, tb?.mean))
         }
         .padding(.horizontal, 16)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 
     private func badge(_ v: Double?, _ b: (mean: Double, sd: Double)?, higherIsBetter: Bool) -> (String, Color)? {

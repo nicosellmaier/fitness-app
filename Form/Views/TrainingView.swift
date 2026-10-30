@@ -26,6 +26,7 @@ struct TrainingView: View {
                         Text("Aktivitäten").tag(2)
                     }
                     .pickerStyle(.segmented)
+                    .sensoryFeedback(.selection, trigger: segment)
                     restrictionBanner
                     switch segment {
                     case 0: PlanOverview()
@@ -61,7 +62,7 @@ struct TrainingView: View {
                         : "Wegen \(r.reasons.joined(separator: ", ")) gibt es Alternativtraining statt Laufen.",
                      color: Theme.bad)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         }
     }
 
@@ -74,6 +75,7 @@ struct TrainingView: View {
             Text("Kraft").tag(2)
         }
         .pickerStyle(.segmented)
+        .sensoryFeedback(.selection, trigger: filter)
         .padding(.top, 8)
         list
     }
@@ -123,12 +125,12 @@ struct TrainingView: View {
             VStack(spacing: 0) {
                 ForEach(filtered) { w in
                     NavigationLink { WorkoutDetailView(item: w) } label: { WorkoutRow(item: w) }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.press)
                     if w.id != filtered.last?.id { Divider().overlay(Theme.line) }
                 }
             }
             .padding(.horizontal, 16)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(CardBackground(radius: 22))
         }
     }
 }

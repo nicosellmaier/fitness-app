@@ -86,6 +86,16 @@ jobs:
           shoot 24-coach 0 coach
           shoot 25-belastung 0 strain
           shoot 26-schlafplan 0 sleepplan
+          shoot 30-programme 0 programs
+          shoot 31-programm 0 program
+          shoot 32-laufvorlagen 0 planpresets
+          shoot 33-null-auf-5 0 c25k
+          shoot 34-profil 0 profile
+          shoot 35-hrv 0 metric-hrv
+          shoot 36-schlafdauer 0 metric-sleep
+          shoot 37-schritte 0 metric-steps
+          shoot 38-gewicht 0 metric-weight
+          shoot 39-tag 0 day
           shoot 12-verletzung 0 injury
           shoot 13-heute-verletzt 0 none
           shoot 14-plan-verletzt 1 none 0

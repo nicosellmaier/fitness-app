@@ -20,9 +20,9 @@ struct JournalPromptCard: View {
                     Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
                 }
                 .padding(14)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .background(CardBackground(radius: 20))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.press)
         }
     }
 }
@@ -52,7 +52,7 @@ struct JournalCard: View {
                 }
             }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 }
 
@@ -94,12 +94,12 @@ struct JournalView: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(CardBackground(radius: 22))
 
                 Button { showAdd = true } label: {
                     Label("Eigenes Verhalten hinzufügen", systemImage: "plus").font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(CardBackground(radius: 14))
                 }
 
                 SectionHeader("Was deine Erholung beeinflusst")
@@ -116,7 +116,7 @@ struct JournalView: View {
                         }
                     }
                     .padding(.horizontal, 14)
-                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .background(CardBackground(radius: 22))
                     Text("Balken: Unterschied der Erholung am Morgen nach einem Ja gegenüber einem Nein, mit 95-%-Vertrauensbereich. Liegt der Bereich ganz auf einer Seite, ist der Effekt bei dir ziemlich sicher. Zusammenhang heißt nicht automatisch Ursache.")
                         .font(.caption).foregroundStyle(Theme.muted).padding(.horizontal, 4)
                 }
@@ -140,7 +140,7 @@ struct JournalView: View {
                 .background(selected ? (t == "Ja" ? Theme.accent : Theme.muted) : Theme.card2, in: Capsule())
                 .foregroundStyle(selected ? Theme.bg : Theme.text)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 
     private func set(_ id: String, _ v: Bool, _ key: String) {

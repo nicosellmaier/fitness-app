@@ -125,7 +125,7 @@ struct NutritionView: View {
             }
         }
         .padding(18)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .background(CardBackground(radius: 26))
     }
 
     private func kv(_ k: String, _ v: String) -> some View {
@@ -198,7 +198,7 @@ struct NutritionView: View {
                     .padding(.vertical, 9)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.press)
                 .contextMenu {
                     Button(role: .destructive) { store.update { $0.entries.removeAll { $0.id == e.id } } } label: { Label("Löschen", systemImage: "trash") }
                 }
@@ -206,7 +206,7 @@ struct NutritionView: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, entries.isEmpty ? 0 : 6)
-        .background(Theme.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(CardBackground(radius: 22))
     }
 
     private func copyYesterday(_ meal: Meal) {
@@ -559,7 +559,7 @@ struct AmountView: View {
                             done()
                         } label: {
                             Text("Eintrag löschen").font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 12)
-                                .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .background(CardBackground(radius: 14))
                         }
                     }
                 }
@@ -586,7 +586,7 @@ struct AmountView: View {
             Text(t).font(.footnote.weight(.bold)).padding(.horizontal, 12).padding(.vertical, 8)
                 .background(Theme.card2, in: Capsule())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.press)
     }
 
     private func save() {

@@ -128,6 +128,7 @@ enum Analytics {
         var parts: [String] = []
         var hrvDelta: Double?
         var rhrDelta: Double?
+        var contrib: [RecoveryPart] = []
         let prev = days[max(0, i - 30)..<i]
         // RMSSD aus Schlag-zu-Schlag-Daten bevorzugen, sonst Apples SDNN. Baseline immer mit derselben Größe.
         let rmssdBase = prev.compactMap { $0.rmssd.map { log($0) } }
@@ -138,26 +139,37 @@ enum Analytics {
             let z = max(-3, min(3, (log(h) - b.mean) / b.sd))
             score += 13 * z
             hrvDelta = h - exp(b.mean)
+            contrib.append(RecoveryPart(name: useR ? "HRV (RMSSD)" : "HRV", points: 13 * z,
+                                        detail: "\(Fmt.num(h)) ms, Schnitt \(Fmt.num(exp(b.mean))) ms"))
             parts.append(z > 0.4 ? "HRV über deinem Schnitt" : z < -0.4 ? "HRV unter deinem Schnitt" : "HRV im normalen Bereich")
         }
         if let r = d.rhr, let b = baseline(days, before: i, \.rhr) {
             let z = max(-3, min(3, (r - b.mean) / b.sd))
             score -= 8 * z
             rhrDelta = r - b.mean
+            contrib.append(RecoveryPart(name: "Ruhepuls", points: -8 * z, detail: "\(Fmt.num(r)) bpm, Schnitt \(Fmt.num(b.mean)) bpm"))
             parts.append(z > 0.7 ? "Ruhepuls erhöht" : z < -0.5 ? "Ruhepuls niedrig" : "Ruhepuls stabil")
         }
         if let s = d.sleep {
             let perf = min(1.1, s.asleep / max(1, need))
             score += 35 * (perf - 0.88)
+            contrib.append(RecoveryPart(name: "Schlaf", points: 35 * (perf - 0.88),
+                                        detail: "\(Fmt.hm(s.asleep)) h von \(Fmt.hm(need)) h Bedarf (\(Int((perf * 100).rounded())) %)"))
             if perf < 0.8 { parts.append("zu wenig Schlaf") }
         }
         if let rr = d.resp, let b = baseline(days, before: i, \.resp) {
             let z = (rr - b.mean) / b.sd
-            if z > 1.5 { score -= 6 * (z - 1); parts.append("Atemfrequenz erhöht") }
+            if z > 1.5 {
+                score -= 6 * (z - 1); parts.append("Atemfrequenz erhöht")
+                contrib.append(RecoveryPart(name: "Atemfrequenz", points: -6 * (z - 1), detail: "\(Fmt.num(rr, 1)) /min, Schnitt \(Fmt.num(b.mean, 1))"))
+            }
         }
         if let t = d.temp, let b = baseline(days, before: i, \.temp) {
             let dev = t - b.mean
-            if dev > 0.4 { score -= min(12, 20 * (dev - 0.3)); parts.append("Temperatur erhöht") }
+            if dev > 0.4 {
+                score -= min(12, 20 * (dev - 0.3)); parts.append("Temperatur erhöht")
+                contrib.append(RecoveryPart(name: "Temperatur", points: -min(12, 20 * (dev - 0.3)), detail: "+\(Fmt.num(dev, 1)) °C über deinem Schnitt"))
+            }
         }
         let sc = Int(max(1, min(99, score.rounded())))
         let label: String
@@ -166,7 +178,7 @@ enum Analytics {
         else if sc >= 34 { label = "Moderat belasten"; color = Theme.warn }
         else { label = "Erholung priorisieren"; color = Theme.bad }
         let text = parts.isEmpty ? "Noch zu wenig Daten für eine genaue Einschätzung. Nach ein paar Nächten wird es genauer." : parts.joined(separator: ", ").capitalizedFirst + "."
-        return Recovery(score: sc, label: label, color: color, text: text, hrvDelta: hrvDelta, rhrDelta: rhrDelta)
+        return Recovery(score: sc, label: label, color: color, text: text, hrvDelta: hrvDelta, rhrDelta: rhrDelta, parts: contrib)
     }
 
     // MARK: Belastung (0 bis 21)
