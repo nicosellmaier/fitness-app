@@ -64,6 +64,19 @@ Formeln, Studien und Grenzen: [docs/WISSENSCHAFT.md](docs/WISSENSCHAFT.md)
 - Erholung (klein, Sperrbildschirm rund, rechteckig, Zeile), Heute (mittel), Trainingswoche (groß)
 - Satzpause als Live Activity im Dynamic Island mit +30 s und Überspringen
 
+### Neu
+- **Struktur**: Heute (Kern), Training (Laufen und Kraft gleichberechtigt, Mobility, Verlauf), Ernährung, Körper (Kachelraster mit eigenen Seiten), Mehr (Coach, Wochenbericht, Einstellungen, Export, Backup)
+- **Zyklus**: Phase aus Apple Health, Prognose, Erholung und Gesundheitsmonitor um den Lutealphasen-Effekt bereinigt, Plan entschärft vor der Periode, Coach kennt die Phase
+- **iCloud-Backup**: jede Änderung landet in iCloud Drive, neues iPhone übernimmt die Daten automatisch
+- **Wochen-, Monats- und Jahresbericht** mit Highlights, Belastung-gegen-Erholung, Schlafkonsistenz, Push montags
+- **Erinnerungen**: Morgenbriefing, Journal, Essen, Trinken
+- **Ernährung**: Wasser, Gewicht (auch nach Health), Rezepte, gespeicherte Mahlzeiten, Favoriten, Schnell-Eintrag, 30/90-Tage-Verlauf
+- **Laufen**: Bestzeiten, RPE nach jeder Einheit, Schuh-Kilometer mit Warnung, Wettkampftag mit Zwischenzeiten und Pacing für die Watch, Steigerungen, Laufband-Modus, Plan pausieren
+- **Kraft**: Supersätze, Notizen pro Übung, Satzpause nach Übungstyp, Sätze pro Muskelgruppe pro Woche, RPE
+- **Mobility**: 6 Routinen mit Timer, Empfehlung passend zur Verletzung
+- **Siri**: "Wie ist meine Erholung in Form", Schlafenszeit, Wasser und Gewicht eintragen, Training starten, Briefing
+- **Export**: CSV für Tageswerte, Kraft, Workouts, Ernährung; PDF-Gesundheitsbericht; JSON-Backup
+
 ### Mehrere Nutzer
 - Jede Person installiert die App über TestFlight auf ihrem eigenen iPhone. Die Daten bleiben auf dem jeweiligen Gerät.
 - Beim ersten Start fragt die App Name, Körperdaten und Ziel ab. Der Finanzen-Tab lässt sich ausblenden.

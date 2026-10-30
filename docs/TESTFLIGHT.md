@@ -91,3 +91,15 @@ Der Fehler steht in GitHub direkt in der Zusammenfassung des Laufs.
 - **Cloud signing permission error**: Der API-Schlüssel hat nicht die Rolle *Admin*. Neuen Schlüssel mit Admin anlegen und die Secrets ersetzen.
 - **No suitable application records were found**: Schritt 3 fehlt oder die Bundle-ID ist anders geschrieben.
 - **Invalid key / 401**: In `ASC_KEY_P8` fehlt eine Zeile oder es wurde ein Leerzeichen mitkopiert.
+
+## iCloud-Container
+
+Die App sichert ihre Daten in iCloud Drive. Dafür braucht die App-ID die Berechtigung "iCloud" mit dem Container `iCloud.de.nicosellmaier.form`.
+
+Xcode legt den Container beim signierten Build normalerweise selbst an. Schlägt der Release-Workflow mit einem Fehler zu "iCloud" oder "container" fehl:
+
+1. Öffne developer.apple.com → Certificates, Identifiers & Profiles → Identifiers.
+2. Wähle oben rechts "iCloud Containers" und tippe auf "+".
+3. Beschreibung "Form", Identifier `iCloud.de.nicosellmaier.form`. Speichern.
+4. Wechsle zu "App IDs" → `de.nicosellmaier.form` → Capabilities → iCloud einschalten → "CloudKit" aus, "iCloud Documents" an → den Container zuweisen. Speichern.
+5. Starte den Release-Workflow erneut.
