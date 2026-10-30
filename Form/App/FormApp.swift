@@ -36,6 +36,7 @@ struct RootView: View {
     @Environment(RestTimer.self) private var timer
     @Environment(\.scenePhase) private var phase
     @State private var tab = UserDefaults.standard.integer(forKey: "startTab")
+    @State private var briefing = false
     private let shot = UserDefaults.standard.string(forKey: "shot") ?? ""
 
     /// Neue Nutzer (z. B. ein zweites iPhone) füllen beim ersten Start ihr Profil aus
@@ -101,11 +102,16 @@ struct RootView: View {
                 .sensoryFeedback(.selection, trigger: tab)
                 .environment(\.switchTab, { tab = $0 })
                 .sheet(isPresented: needsProfile) { ProfileSetupView() }
+                .sheet(isPresented: $briefing) { CoachView(initialPrompt: "Gib mir mein Tagesbriefing") }
             }
         }
         .task { await refresh() }
         .onChange(of: phase) { _, newPhase in
-            if newPhase == .active, model.loaded { Task { await refresh() } }
+            if newPhase == .active {
+                store.reloadIfChanged()
+                handlePending()
+                if model.loaded { Task { await refresh() } }
+            }
         }
         .onChange(of: store.data.injuries) { _, _ in afterChange() }
         .onChange(of: store.data.illness) { _, _ in afterChange() }
@@ -116,6 +122,22 @@ struct RootView: View {
         .onChange(of: store.data.profile.bedtimeReminder) { _, _ in afterChange() }
         .onChange(of: store.data.reminders) { _, _ in afterChange() }
         .onChange(of: store.data.planPausedUntil) { _, _ in afterChange() }
+    }
+
+    /// Von Siri oder Kurzbefehlen angestoßen
+    @MainActor
+    private func handlePending() {
+        let ud = UserDefaults.standard
+        if ud.object(forKey: "pendingTab") != nil { tab = ud.integer(forKey: "pendingTab"); ud.removeObject(forKey: "pendingTab") }
+        if let name = ud.string(forKey: "pendingRoutine") {
+            ud.removeObject(forKey: "pendingRoutine")
+            if store.activeSession == nil {
+                let r = store.data.routines.first { $0.name.lowercased().contains(name.lowercased()) && !name.isEmpty } ?? store.data.routines.first
+                if let r { store.activeSession = Strength.makeSession(from: r, sessions: store.data.sessions, restrictions: store.restrictions); store.saveActiveSession() }
+            }
+            tab = 1
+        }
+        if ud.bool(forKey: "pendingBriefing") { ud.removeObject(forKey: "pendingBriefing"); tab = 0; briefing = true }
     }
 
     /// Health-Daten laden, Plan live anpassen, Widgets und Erinnerungen aktualisieren

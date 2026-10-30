@@ -47,6 +47,15 @@ struct InjuryView: View {
                         Spacer()
                         Badge(text: "AKTIV", color: Theme.bad)
                     }
+                    if let r = MobilityRoutine.recommended(for: inj.region) {
+                        NavigationLink { MobilityPlayerView(routine: r) } label: {
+                            Label("Reha-Routine: \(r.name), \(r.minutes) min", systemImage: "figure.cooldown")
+                                .font(.subheadline.weight(.bold)).foregroundStyle(Theme.good)
+                                .frame(maxWidth: .infinity).padding(.vertical, 11)
+                                .background(Theme.good.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+                        .buttonStyle(.press)
+                    }
                     Button {
                         store.update { d in
                             if let i = d.injuries.firstIndex(where: { $0.id == inj.id }) { d.injuries[i].resolved = .now }

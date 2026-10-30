@@ -391,6 +391,16 @@ final class DataStore {
         }
     }
 
+    /// Nach einem Kurzbefehl im Hintergrund: Datei neu laden, wenn sie neuer ist
+    func reloadIfChanged() {
+        let dec = JSONDecoder()
+        dec.dateDecodingStrategy = .secondsSince1970
+        guard let d = try? Data(contentsOf: url), let decoded = try? dec.decode(AppData.self, from: d),
+              decoded.savedAt > data.savedAt else { return }
+        data = decoded
+        ExerciseDB.custom = data.customExercises
+    }
+
     func update(_ change: (inout AppData) -> Void) {
         change(&data)
         ExerciseDB.custom = data.customExercises

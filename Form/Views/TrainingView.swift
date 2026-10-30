@@ -33,6 +33,21 @@ struct TrainingView: View {
                         runningTile
                         strengthTile
                     }
+                    NavigationLink { MobilityListView() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "figure.cooldown").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                                .frame(width: 44, height: 44).background(Theme.good, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Mobility und Dehnen").font(.subheadline.weight(.bold))
+                                Text(mobilityNote).font(.caption).foregroundStyle(Theme.muted)
+                            }
+                            Spacer()
+                            Chevron()
+                        }
+                        .padding(14)
+                        .background(CardBackground(radius: 20))
+                    }
+                    .buttonStyle(.press)
                     SectionHeader("Diese Woche")
                     weekCard
                     SectionHeader("Verlauf", trailing: "\(model.workouts.count) Einheiten")
@@ -69,6 +84,13 @@ struct TrainingView: View {
             .onAppear { openRequested() }
             .onChange(of: openSection) { _, _ in openRequested() }
         }
+    }
+
+    private var mobilityNote: String {
+        if let i = store.restrictions.allReasons.first, let r = store.data.injuries.first(where: { $0.active }).flatMap({ MobilityRoutine.recommended(for: $0.region) }) {
+            return "Bei \(i): \(r.name), \(r.minutes) min täglich"
+        }
+        return "6 Routinen mit Timer, 5 bis 10 Minuten"
     }
 
     private func openRequested() {
