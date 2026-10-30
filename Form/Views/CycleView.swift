@@ -113,7 +113,7 @@ struct CycleView: View {
                     ForEach(segs) { s in
                         HStack(spacing: 4) {
                             Circle().fill(s.phase.color).frame(width: 7, height: 7)
-                            Text(s.phase.label).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.soft)
+                            Text(s.phase.short).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.soft).lineLimit(1)
                         }
                     }
                 }

@@ -9,6 +9,9 @@ enum DemoSeed {
         if shot == "cycle" {
             store.update { $0.profile.sex = .female; $0.profile.name = "Lena" }
             model.female = true
+        } else if store.data.profile.name == "Lena" {
+            store.update { $0.profile.sex = .male; $0.profile.name = "" }
+            model.female = false
         }
         if store.data.shoes.isEmpty {
             store.update { d in

@@ -18,6 +18,17 @@ enum CyclePhase: String, CaseIterable {
         }
     }
 
+    var short: String {
+        switch self {
+        case .menstrual: return "Periode"
+        case .follicular: return "Follikel"
+        case .ovulation: return "Eisprung"
+        case .luteal: return "Luteal"
+        case .lateLuteal: return "Spät"
+        case .late: return "Überfällig"
+        }
+    }
+
     var color: Color {
         switch self {
         case .menstrual: return Color(hex: 0xFF6B8A)
