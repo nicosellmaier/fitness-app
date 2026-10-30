@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var maxHR: Double = 192
     @State private var sleepBase: Double = 8
     @State private var demo = false
+    @State var rem = ReminderPrefs()
     @AppStorage("financeURL") private var financeURL = FinanceView.defaultURL
 
     var body: some View {
@@ -66,6 +67,26 @@ struct SettingsView: View {
                     Text("Schlafplan")
                 }
                 Section {
+                    Toggle("Morgenbriefing", isOn: $rem.briefing)
+                    if rem.briefing {
+                        DatePicker("Uhrzeit", selection: briefingTime, displayedComponents: .hourAndMinute)
+                    }
+                    Toggle("Journal ausfüllen", isOn: $rem.journal)
+                    if rem.journal {
+                        Stepper("Um \(rem.journalHour):00 Uhr", value: $rem.journalHour, in: 6...22)
+                    }
+                    Toggle("Essen eintragen (13:30, 20:00)", isOn: $rem.meals)
+                    Toggle("Trinken (10, 14, 17:30 Uhr)", isOn: $rem.water)
+                    if rem.water {
+                        Stepper("Ziel: \(Int(rem.waterGoalMl)) ml", value: $rem.waterGoalMl, in: 1000...5000, step: 250)
+                    }
+                    Toggle("Wochenbericht montags 8 Uhr", isOn: $rem.weeklyReport)
+                } header: {
+                    Text("Erinnerungen")
+                } footer: {
+                    Text("Alles lokal auf dem iPhone geplant. Die Erinnerung vor der Schlafenszeit stellst du oben unter Schlaf ein.")
+                }
+                Section {
                     NavigationLink("KI-Coach verbinden") { CoachSetupView() }
                     NavigationLink("Coach-Gedächtnis") { CoachMemoryView() }
                 } header: {
@@ -110,7 +131,10 @@ struct SettingsView: View {
                     Button("Fertig") {
                         let wantsReminder = profile.bedtimeReminder && !store.data.profile.bedtimeReminder
                         let p = profile
-                        store.update { $0.profile = p }
+                        let r = rem
+                        let remOn = r.briefing || r.journal || r.meals || r.water || r.weeklyReport
+                        store.update { $0.profile = p; $0.reminders = r }
+                        if remOn { Task { await Notifications.requestPermission() } }
                         if wantsReminder { Task { await Notifications.requestPermission() } }
                         let need = model.needTonight
                         Notifications.updateBedtime(enabled: p.bedtimeReminder, bedtime: model.sleepPlan?.bedtime, need: need.total)
@@ -129,8 +153,20 @@ struct SettingsView: View {
                 maxHR = model.maxHR
                 sleepBase = model.sleepBaseHours
                 demo = model.forceDemo
+                rem = store.data.reminders
             }
         }
+    }
+}
+
+extension SettingsView {
+    var briefingTime: Binding<Date> {
+        Binding(get: {
+            Calendar.current.date(from: DateComponents(hour: rem.briefingHour, minute: rem.briefingMinute)) ?? .now
+        }, set: { d in
+            rem.briefingHour = Calendar.current.component(.hour, from: d)
+            rem.briefingMinute = Calendar.current.component(.minute, from: d)
+        })
     }
 }
 

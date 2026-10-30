@@ -24,6 +24,11 @@ extension DataStore {
         return NutritionTargets.make(profile: p, activeKcal: isToday ? model.activeKcalToday : 0, plannedRunKm: runKm)
     }
 
+    var favoriteFoods: [FoodItem] {
+        let all = data.foods + recentFoods + FoodDB.basics
+        return data.favoriteFoods.compactMap { id in all.first { $0.id == id } }
+    }
+
     var recentFoods: [FoodItem] {
         var seen = Set<String>()
         var out: [FoodItem] = []
@@ -45,6 +50,10 @@ struct NutritionView: View {
     @State private var addMeal: Meal?
     @State private var editing: FoodEntry?
     @State private var showBreakdown = false
+    @State private var quickMeal: Meal?
+    @State private var templateMeal: Meal?
+    @State private var saveTemplateMeal: Meal?
+    @State private var templateName = ""
 
     var body: some View {
         NavigationStack {
@@ -60,7 +69,15 @@ struct NutritionView: View {
                     ForEach(Meal.allCases) { meal in
                         mealSection(meal, entries.filter { $0.meal == meal })
                     }
-                    SectionHeader("Letzte 7 Tage")
+                    SectionHeader("Körper")
+                    WaterCard(day: day)
+                    WeightCard(day: day)
+                    HStack {
+                        SectionHeader("Letzte 7 Tage")
+                        Spacer()
+                        NavigationLink { NutritionHistoryView() } label: { HStack(spacing: 4) { Text("Verlauf").font(.subheadline.weight(.bold)); Chevron() } }
+                            .buttonStyle(.press).padding(.top, 14)
+                    }
                     WeekKcalChart(endDay: day, target: t.kcal)
                 }
                 .padding(.horizontal, 16)
@@ -69,11 +86,27 @@ struct NutritionView: View {
             .screenBackground()
             .navigationTitle("Ernährung")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink { RecipeListView() } label: { Image(systemName: "text.book.closed") }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { addMeal = Meal.now } label: { Image(systemName: "plus.circle.fill").font(.title3) }
                 }
             }
             .sheet(item: $addMeal) { meal in AddFoodView(meal: meal, day: day) }
+            .sheet(item: $quickMeal) { meal in QuickAddView(meal: meal, day: day) }
+            .sheet(item: $templateMeal) { meal in MealTemplatesView(meal: meal, day: day) }
+            .alert("Mahlzeit speichern", isPresented: Binding(get: { saveTemplateMeal != nil }, set: { if !$0 { saveTemplateMeal = nil } })) {
+                TextField("Name, z. B. Mein Frühstück", text: $templateName)
+                Button("Speichern") {
+                    guard let m = saveTemplateMeal else { return }
+                    let items = store.entries(on: day).filter { $0.meal == m }.map { RecipeIngredient(food: $0.food, grams: $0.grams) }
+                    let name = templateName.isEmpty ? m.label : templateName
+                    store.update { $0.mealTemplates.append(MealTemplate(name: name, items: items)) }
+                    saveTemplateMeal = nil; templateName = ""
+                }
+                Button("Abbrechen", role: .cancel) { saveTemplateMeal = nil }
+            }
             .sheet(item: $editing) { e in AmountView(food: e.food, meal: e.meal, day: e.date, existing: e) { editing = nil } }
         }
     }
@@ -174,7 +207,12 @@ struct NutritionView: View {
                 Spacer()
                 Menu {
                     Button { addMeal = meal } label: { Label("Lebensmittel hinzufügen", systemImage: "plus") }
+                    Button { quickMeal = meal } label: { Label("Schnell-Eintrag (nur Kalorien)", systemImage: "bolt") }
+                    Button { templateMeal = meal } label: { Label("Gespeicherte Mahlzeit einfügen", systemImage: "tray.and.arrow.down") }
                     Button { copyYesterday(meal) } label: { Label("Von gestern übernehmen", systemImage: "doc.on.doc") }
+                    if !entries.isEmpty {
+                        Button { templateName = ""; saveTemplateMeal = meal } label: { Label("Als Mahlzeit speichern", systemImage: "square.and.arrow.down") }
+                    }
                 } label: {
                     Image(systemName: "plus").font(.headline).frame(width: 34, height: 30)
                         .background(Theme.card2, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -343,6 +381,8 @@ struct AddFoodView: View {
                     Section {
                         Picker("", selection: $tab) {
                             Text("Zuletzt").tag(0)
+                            Text("Favoriten").tag(3)
+                            Text("Rezepte").tag(4)
                             Text("Basis").tag(1)
                             Text("Eigene").tag(2)
                         }
@@ -351,9 +391,13 @@ struct AddFoodView: View {
                         .listRowInsets(EdgeInsets())
                     }
                     Section {
-                        let list = tab == 0 ? store.recentFoods : tab == 1 ? FoodDB.basics : store.data.foods.filter(\.custom)
+                        let list = tab == 0 ? store.recentFoods : tab == 1 ? FoodDB.basics : tab == 3 ? store.favoriteFoods
+                            : tab == 4 ? store.data.recipes.map(\.asFood) : store.data.foods.filter(\.custom)
                         if list.isEmpty {
-                            Text(tab == 0 ? "Noch nichts eingetragen. Suche oben oder scanne einen Barcode." : "Noch keine eigenen Lebensmittel.")
+                            Text(tab == 0 ? "Noch nichts eingetragen. Suche oben oder scanne einen Barcode."
+                                 : tab == 3 ? "Noch keine Favoriten. Lebensmittel lange drücken und mit Stern markieren."
+                                 : tab == 4 ? "Noch keine Rezepte. Anlegen über das Buch-Symbol auf der Ernährungsseite."
+                                 : "Noch keine eigenen Lebensmittel.")
                                 .font(.footnote).foregroundStyle(Theme.muted)
                         }
                         ForEach(list) { f in foodRow(f) }
@@ -425,7 +469,8 @@ struct AddFoodView: View {
     }
 
     private func foodRow(_ f: FoodItem) -> some View {
-        Button { selected = f } label: {
+        let fav = store.data.favoriteFoods.contains(f.id)
+        return Button { selected = f } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(f.name).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text).lineLimit(2)
@@ -433,11 +478,19 @@ struct AddFoodView: View {
                         .font(.caption).foregroundStyle(Theme.muted).lineLimit(1)
                 }
                 Spacer()
+                if fav { Image(systemName: "star.fill").font(.caption).foregroundStyle(Theme.warn) }
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(Fmt.num(f.kcal)).font(.subheadline.weight(.bold)).foregroundStyle(Theme.text).monospacedDigit()
                     Text("kcal").font(.caption2).foregroundStyle(Theme.muted)
                 }
             }
+        }
+        .contextMenu {
+            Button {
+                store.update { d in
+                    if fav { d.favoriteFoods.removeAll { $0 == f.id } } else { d.favoriteFoods.append(f.id); if !d.foods.contains(where: { $0.id == f.id }) { d.foods.append(f) } }
+                }
+            } label: { Label(fav ? "Aus Favoriten entfernen" : "Zu Favoriten", systemImage: fav ? "star.slash" : "star") }
         }
     }
 

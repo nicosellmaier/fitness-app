@@ -114,6 +114,7 @@ struct RootView: View {
         .onChange(of: store.data.profile.sex) { _, _ in syncModel() }
         .onChange(of: store.data.sleepPrefs) { _, _ in afterChange() }
         .onChange(of: store.data.profile.bedtimeReminder) { _, _ in afterChange() }
+        .onChange(of: store.data.reminders) { _, _ in afterChange() }
     }
 
     /// Health-Daten laden, Plan live anpassen, Widgets und Erinnerungen aktualisieren
@@ -158,6 +159,7 @@ struct RootView: View {
             }
         }
         WidgetBridge.update(model: model, store: store)
+        Reminders.update(prefs: store.data.reminders, store: store)
         let plan = model.sleepPlan
         PlanReminders.update(plan: plan, prefs: store.data.sleepPrefs, bedtimeReminder: store.data.profile.bedtimeReminder,
                              need: model.needTonight.total)
