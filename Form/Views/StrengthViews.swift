@@ -50,6 +50,24 @@ struct StrengthHomeView: View {
             .padding(.horizontal, 4)
             .padding(.top, 6)
 
+            NavigationLink { ProgramLibraryView() } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "square.stack.3d.up.fill").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                        .frame(width: 44, height: 44)
+                        .background(LinearGradient(colors: [Theme.warn, Theme.bad.opacity(0.85)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(store.data.routines.isEmpty ? "Mit einem Programm starten" : "Programme entdecken").font(.subheadline.weight(.bold))
+                        Text("\(Presets.programs.count) fertige Pläne: Einsteiger, Zuhause, Beine & Po, Split").font(.caption).foregroundStyle(Theme.muted)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
+                }
+                .padding(14)
+                .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
             ForEach(store.data.routines) { routine in
                 RoutineCard(routine: routine, onEdit: { editing = routine }, onStart: { start(routine) })
             }

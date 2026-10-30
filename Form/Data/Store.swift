@@ -38,6 +38,8 @@ struct Profile: Codable {
     var restSeconds: Int = 120
     var saveStrengthToHealth: Bool = true
     var bedtimeReminder: Bool = false
+    var name: String = ""
+    var showFinance: Bool = true
 
     init() {}
 
@@ -53,6 +55,8 @@ struct Profile: Codable {
         restSeconds = (try? c.decodeIfPresent(Int.self, forKey: .restSeconds)) ?? d.restSeconds
         saveStrengthToHealth = (try? c.decodeIfPresent(Bool.self, forKey: .saveStrengthToHealth)) ?? d.saveStrengthToHealth
         bedtimeReminder = (try? c.decodeIfPresent(Bool.self, forKey: .bedtimeReminder)) ?? d.bedtimeReminder
+        name = (try? c.decodeIfPresent(String.self, forKey: .name)) ?? d.name
+        showFinance = (try? c.decodeIfPresent(Bool.self, forKey: .showFinance)) ?? d.showFinance
     }
 
     var age: Int { max(14, Calendar.current.component(.year, from: .now) - birthYear) }
@@ -254,6 +258,8 @@ struct AppData: Codable {
     var coachMemory: [String] = []
     var coachHistory: [CoachMessage] = []
     var sleepPrefs = SleepPrefs()
+    /// Profil beim ersten Start ausgefüllt
+    var profileDone = false
 
     init() {}
 
@@ -279,6 +285,8 @@ struct AppData: Codable {
         coachMemory = (try? c.decodeIfPresent([String].self, forKey: .coachMemory)) ?? []
         coachHistory = (try? c.decodeIfPresent([CoachMessage].self, forKey: .coachHistory)) ?? []
         sleepPrefs = (try? c.decodeIfPresent(SleepPrefs.self, forKey: .sleepPrefs)) ?? SleepPrefs()
+        // Bestehende Daten ohne das Feld stammen von vor dem Profil-Dialog: nicht erneut fragen
+        profileDone = (try? c.decodeIfPresent(Bool.self, forKey: .profileDone)) ?? true
     }
 }
 

@@ -7,6 +7,7 @@ struct PlanOverview: View {
     @Environment(DataStore.self) private var store
     @Environment(AppModel.self) private var model
     @State private var showSetup = false
+    @State private var presetChoice: RunPreset?
     @State private var sending = false
     @State private var sendResult: String?
     @State private var confirmDelete = false
@@ -16,22 +17,51 @@ struct PlanOverview: View {
             content(plan)
                 .sheet(isPresented: $showSetup) { PlanSetupView(existing: plan.settings) }
         } else {
-            empty.sheet(isPresented: $showSetup) { PlanSetupView(existing: nil) }
+            empty
+                .sheet(isPresented: $showSetup) { PlanSetupView(existing: nil) }
+                .sheet(item: $presetChoice) { p in PlanSetupView(existing: nil, preset: p) }
         }
     }
 
     private var empty: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: "flag.checkered").font(.system(size: 30, weight: .bold)).foregroundStyle(Theme.accent)
-                Text("Dein persönlicher Trainingsplan").font(.title3.weight(.heavy))
-                Text("Ziel und Datum eingeben. Die App schätzt deine Form aus deinen Läufen, baut Phasen, Umfänge und Einheiten und passt alles laufend an Erholung, Leistung, Verletzungen und verpasste Einheiten an. Intervalle landen direkt auf der Watch.")
-                    .font(.footnote).foregroundStyle(Theme.soft)
-                Button { showSetup = true } label: {
-                    Text("Plan erstellen").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
-                        .background(Theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous)).foregroundStyle(Theme.bg)
+        VStack(alignment: .leading, spacing: 12) {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    Image(systemName: "flag.checkered").font(.system(size: 30, weight: .bold)).foregroundStyle(Theme.accent)
+                        .symbolEffect(.bounce, options: .nonRepeating)
+                    Text("Dein persönlicher Laufplan").font(.title3.weight(.heavy))
+                    Text("Wähl eine Vorlage oder stell dir dein Ziel selbst zusammen. Der Plan passt sich danach jeden Tag an Erholung, Leistung, Verletzungen und verpasste Einheiten an. Intervalle landen direkt auf der Watch.")
+                        .font(.footnote).foregroundStyle(Theme.soft)
                 }
             }
+            SectionHeader("Vorlagen")
+            ForEach(RunPreset.all) { p in
+                Button { presetChoice = p } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: p.icon).font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                            .frame(width: 48, height: 48)
+                            .background(LinearGradient(colors: [Theme.accent, Theme.good], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                        in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 6) {
+                                Text(p.title).font(.headline)
+                                if p.beginner { Badge(text: "EINSTEIGER", color: Theme.good) }
+                            }
+                            Text(p.subtitle).font(.caption).foregroundStyle(Theme.muted).multilineTextAlignment(.leading)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").foregroundStyle(Theme.muted)
+                    }
+                    .padding(14)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+            Button { showSetup = true } label: {
+                Text("Eigenes Ziel festlegen").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .padding(.top, 4)
         }
     }
 
@@ -508,6 +538,7 @@ struct PlanSetupView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let existing: PlanSettings?
+    var preset: RunPreset? = nil
     @State private var s = PlanSettings()
     @State private var vdot: Double = 45
     @State private var useTarget = false
@@ -523,6 +554,36 @@ struct PlanSetupView: View {
     var body: some View {
         NavigationStack {
             SwiftUI.Form {
+                if existing == nil {
+                    Section {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(RunPreset.all) { p in
+                                    Button { withAnimation(.snappy) { apply(p) } } label: {
+                                        Label(p.title, systemImage: p.icon).font(.footnote.weight(.bold))
+                                            .padding(.horizontal, 12).padding(.vertical, 9)
+                                            .background(isActive(p) ? Theme.accent : Theme.card2, in: Capsule())
+                                            .foregroundStyle(isActive(p) ? Theme.bg : Theme.text)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                    } header: {
+                        Text("Vorlage")
+                    }
+                }
+                if s.beginner {
+                    Section {
+                        Label("8 Wochen mit drei Läufen pro Woche. Laufen und Gehen im Wechsel, die Laufabschnitte werden jede Woche länger. Am Ende stehen 5 km am Stück.", systemImage: "figure.walk.motion")
+                            .font(.footnote)
+                        Toggle("Einsteigerplan", isOn: $s.beginner)
+                    } header: {
+                        Text("Einsteiger")
+                    }
+                }
                 Section("Ziel") {
                     Picker("Distanz", selection: $s.distance) {
                         ForEach(RaceDistance.allCases) { Text($0.label).tag($0) }
@@ -599,6 +660,10 @@ struct PlanSetupView: View {
         }
     }
 
+    private func isActive(_ p: RunPreset) -> Bool {
+        p.beginner ? s.beginner : (!s.beginner && s.distance == p.distance && s.runDays.sorted() == p.runDays.sorted())
+    }
+
     private var weeksUntil: Int {
         max(0, Int((Calendar.current.startOfDay(for: s.raceDate).timeIntervalSince(Calendar.current.startOfDay(for: .now)) / 86400 / 7).rounded(.down)))
     }
@@ -641,7 +706,17 @@ struct PlanSetupView: View {
             vdot = PlanGenerator.estimateVDOT(workouts: model.workouts, vo2max: model.vo2.last?.value)
             s.startWeeklyKm = max(10, PlanGenerator.recentWeeklyKm(workouts: model.workouts))
             s.startVDOT = vdot
+            if let p = preset { apply(p) }
         }
+    }
+
+    private func apply(_ p: RunPreset) {
+        let recent = PlanGenerator.recentWeeklyKm(workouts: model.workouts)
+        s = p.settings()
+        s.startWeeklyKm = p.beginner ? 0 : max(p.startKm, recent)
+        if p.beginner { vdot = min(vdot, 32) }
+        s.startVDOT = vdot
+        useTarget = false
     }
 
     private func create() {

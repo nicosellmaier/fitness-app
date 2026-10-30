@@ -39,11 +39,12 @@ enum RaceDistance: String, Codable, CaseIterable, Identifiable {
 }
 
 enum PaceZone: String, Codable, CaseIterable {
-    case recovery, easy, long, marathon, half, tenK, fiveK, threshold, interval, repetition, race
+    case recovery, easy, long, marathon, half, tenK, fiveK, threshold, interval, repetition, race, walk
 
     var label: String {
         switch self {
         case .recovery: return "Trab"
+        case .walk: return "Gehen"
         case .easy: return "Locker"
         case .long: return "Lang & locker"
         case .marathon: return "Marathontempo"
@@ -57,11 +58,11 @@ enum PaceZone: String, Codable, CaseIterable {
         }
     }
 
-    var isQuality: Bool { ![.recovery, .easy, .long].contains(self) }
+    var isQuality: Bool { ![.recovery, .easy, .long, .walk].contains(self) }
 
     var color: Color {
         switch self {
-        case .recovery, .easy, .long: return Theme.track
+        case .recovery, .easy, .long, .walk: return Theme.track
         case .marathon, .half, .race: return Theme.sleep
         case .tenK, .fiveK, .threshold: return Theme.warn
         case .interval, .repetition: return Theme.accent
@@ -194,6 +195,25 @@ struct PlanSettings: Codable, Hashable {
     var strengthDays: [Int] = [2, 5]
     var startWeeklyKm: Double = 25
     var startVDOT: Double = 45
+    /// Einsteigerplan mit Wechsel aus Laufen und Gehen
+    var beginner = false
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = PlanSettings()
+        distance = (try? c.decodeIfPresent(RaceDistance.self, forKey: .distance)) ?? d.distance
+        raceDate = (try? c.decodeIfPresent(Date.self, forKey: .raceDate)) ?? d.raceDate
+        raceName = (try? c.decodeIfPresent(String.self, forKey: .raceName)) ?? d.raceName
+        targetSeconds = try? c.decodeIfPresent(Double.self, forKey: .targetSeconds)
+        runDays = (try? c.decodeIfPresent([Int].self, forKey: .runDays)) ?? d.runDays
+        longRunDay = (try? c.decodeIfPresent(Int.self, forKey: .longRunDay)) ?? d.longRunDay
+        strengthDays = (try? c.decodeIfPresent([Int].self, forKey: .strengthDays)) ?? d.strengthDays
+        startWeeklyKm = (try? c.decodeIfPresent(Double.self, forKey: .startWeeklyKm)) ?? d.startWeeklyKm
+        startVDOT = (try? c.decodeIfPresent(Double.self, forKey: .startVDOT)) ?? d.startVDOT
+        beginner = (try? c.decodeIfPresent(Bool.self, forKey: .beginner)) ?? false
+    }
 }
 
 struct TrainingPlan: Codable {
@@ -267,6 +287,7 @@ struct Paces {
     func sec(_ z: PaceZone) -> Double {
         switch z {
         case .recovery: return atFraction(0.62)
+        case .walk: return 600
         case .easy: return atFraction(0.70)
         case .long: return atFraction(0.68)
         case .marathon: return race(42195)
@@ -287,6 +308,7 @@ struct Paces {
         case .easy: return Fmt.pace(atFraction(0.74)) + "–" + Fmt.pace(atFraction(0.65)) + "/km"
         case .long: return Fmt.pace(atFraction(0.72)) + "–" + Fmt.pace(atFraction(0.65)) + "/km"
         case .recovery: return "locker traben"
+        case .walk: return "zügig gehen"
         default: return Fmt.pace(sec(z)) + "/km"
         }
     }
@@ -368,6 +390,7 @@ enum PlanGenerator {
     static func dayOffset(_ weekday: Int) -> Int { mondayFirst.firstIndex(of: weekday) ?? 0 }
 
     static func generate(settings s: PlanSettings, vdot: Double, today: Date = .now) -> TrainingPlan {
+        if s.beginner { return beginner(settings: s, vdot: vdot, today: today) }
         let c = cal
         let todayStart = c.startOfDay(for: today)
         let raceDay = c.startOfDay(for: s.raceDate)
@@ -483,6 +506,53 @@ enum PlanGenerator {
         runs.sort { $0.date < $1.date }
         return TrainingPlan(settings: s, vdot: vdot, created: .now, runs: runs, phases: phases,
                             log: [PlanLogEntry(date: .now, text: "Plan erstellt: \(weeks) Wochen bis \(s.distance.label), Form-Wert \(Fmt.num(vdot, 1)).")])
+    }
+
+    /// 0 auf 5 km: 8 Wochen, 3 Einheiten pro Woche, Laufen und Gehen im Wechsel, am Ende 5 km am Stück
+    static func beginner(settings s0: PlanSettings, vdot: Double, today: Date) -> TrainingPlan {
+        var s = s0
+        let c = cal
+        let todayStart = c.startOfDay(for: today)
+        let firstWeek = weekStart(todayStart)
+        let steps: [(reps: Int, run: Double, walk: Double)] = [
+            (8, 1, 1.5), (6, 2, 1.5), (5, 3, 1.5), (3, 5, 2.5), (3, 7, 2), (2, 10, 2), (2, 13, 1.5), (1, 25, 0),
+        ]
+        let days = mondayFirst.filter { s.runDays.contains($0) }.prefix(3)
+        var runs: [PlannedRun] = []
+        for (w, st) in steps.enumerated() {
+            let ws = c.date(byAdding: .day, value: 7 * w, to: firstWeek) ?? firstWeek
+            for (k, wd) in days.enumerated() {
+                let date = c.date(byAdding: .day, value: dayOffset(wd), to: ws) ?? ws
+                guard date >= todayStart else { continue }
+                if w == steps.count - 1 && k == days.count - 1 {
+                    let st5 = RunStructure(warmup: .min(5, .walk), blocks: [Block(repeats: 1, work: .km(5, .easy))], cooldown: .min(5, .walk))
+                    runs.append(PlannedRun(date: date, type: .race, title: "Dein erster 5-km-Lauf",
+                                           purpose: "Ganz ruhig starten. Langsam ist genau richtig, Hauptsache am Stück.", structure: st5))
+                    continue
+                }
+                let block = st.walk > 0
+                    ? Block(repeats: st.reps, work: .min(st.run, .easy), recovery: .min(st.walk, .walk))
+                    : Block(repeats: 1, work: .min(st.run, .easy))
+                let title = st.walk > 0
+                    ? "\(st.reps) × \(Fmt.num(st.run)) min laufen, \(Fmt.num(st.walk, st.walk.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1)) min gehen"
+                    : "\(Fmt.num(st.run)) min am Stück laufen"
+                runs.append(PlannedRun(date: date, type: .easy, title: title,
+                                       purpose: "So langsam laufen, dass du dich noch unterhalten kannst. Gehpausen gehören dazu. Woche \(w + 1) von 8.",
+                                       structure: RunStructure(warmup: .min(5, .walk), blocks: [block], cooldown: .min(5, .walk))))
+            }
+        }
+        let end = runs.last?.date ?? c.date(byAdding: .day, value: 55, to: firstWeek) ?? todayStart
+        s.distance = .fiveK
+        s.raceDate = end
+        if s.raceName.isEmpty { s.raceName = "0 auf 5 km" }
+        func span(_ name: String, _ a: Int, _ b: Int, _ focus: String) -> PhaseSpan {
+            PhaseSpan(name: name, start: c.date(byAdding: .day, value: 7 * a, to: firstWeek) ?? firstWeek,
+                      end: c.date(byAdding: .day, value: 7 * b + 6, to: firstWeek) ?? firstWeek, focus: focus)
+        }
+        let phases = [span("Gewöhnung", 0, 2, "Körper an das Laufen gewöhnen"), span("Aufbau", 3, 5, "Laufabschnitte verlängern"),
+                      span("Ziel", 6, 7, "30 Minuten am Stück")]
+        return TrainingPlan(settings: s, vdot: vdot, created: .now, runs: runs, phases: phases,
+                            log: [PlanLogEntry(date: .now, text: "Einsteigerplan erstellt: 8 Wochen bis zu 5 km am Stück.")])
     }
 
     static func isQ2(_ wd: Int, _ q2: Int?, _ ph: Phase, _ recoveryWeek: Bool, _ idx: Int) -> Bool {

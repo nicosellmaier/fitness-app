@@ -38,6 +38,12 @@ struct RootView: View {
     @State private var tab = UserDefaults.standard.integer(forKey: "startTab")
     private let shot = UserDefaults.standard.string(forKey: "shot") ?? ""
 
+    /// Neue Nutzer (z. B. ein zweites iPhone) füllen beim ersten Start ihr Profil aus
+    private var needsProfile: Binding<Bool> {
+        Binding(get: { model.loaded && !model.usingDemo && shot.isEmpty && !store.data.profileDone },
+                set: { _ in })
+    }
+
     var body: some View {
         Group {
             if model.needsAccess {
@@ -76,9 +82,13 @@ struct RootView: View {
                     TrainingView().tabItem { Label("Training", systemImage: "figure.run") }.tag(1)
                     NutritionView().tabItem { Label("Ernährung", systemImage: "fork.knife") }.tag(2)
                     HealthView().tabItem { Label("Gesundheit", systemImage: "heart.fill") }.tag(3)
-                    FinanceView().tabItem { Label("Finanzen", systemImage: "creditcard.fill") }.tag(4)
+                    if store.data.profile.showFinance {
+                        FinanceView().tabItem { Label("Finanzen", systemImage: "creditcard.fill") }.tag(4)
+                    }
                 }
+                .sensoryFeedback(.selection, trigger: tab)
                 .environment(\.switchTab, { tab = $0 })
+                .sheet(isPresented: needsProfile) { ProfileSetupView() }
             }
         }
         .task { await refresh() }

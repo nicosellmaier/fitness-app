@@ -15,6 +15,7 @@ struct SettingsView: View {
         NavigationStack {
             SwiftUI.Form {
                 Section {
+                    TextField("Vorname", text: $profile.name)
                     Picker("Geschlecht", selection: $profile.sex) {
                         ForEach(Sex.allCases) { Text($0.label).tag($0) }
                     }
@@ -86,10 +87,13 @@ struct SettingsView: View {
                     if let e = model.errorText { Text(e).foregroundStyle(Theme.bad).font(.footnote) }
                 }
                 Section {
+                    Toggle("Finanzen-Tab anzeigen", isOn: $profile.showFinance)
+                    if profile.showFinance {
                     TextField("Adresse", text: $financeURL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                    }
                 } header: {
                     Text("Finanzen")
                 } footer: {
