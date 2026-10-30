@@ -89,6 +89,20 @@ struct RootView: View {
                 NavigationStack { MetricDetailView(kind: k) }
             } else if shot == "day" {
                 NavigationStack { DayDetailView(day: .now) }
+            } else if shot == "report" {
+                NavigationStack { WeeklyReportView() }
+            } else if shot == "records" {
+                NavigationStack { RecordsView() }
+            } else if shot == "raceday" {
+                NavigationStack { RaceDayView() }
+            } else if shot == "cycle" {
+                NavigationStack { CycleView() }
+            } else if shot == "mobility" {
+                NavigationStack { MobilityListView() }
+            } else if shot == "vitals" {
+                NavigationStack { VitalsView() }
+            } else if shot == "export" {
+                NavigationStack { ExportView() }
             } else if shot == "widgets" || shot == "widgets2" {
                 NavigationStack { WidgetGallery(page: shot == "widgets" ? 0 : 1) }
             } else {

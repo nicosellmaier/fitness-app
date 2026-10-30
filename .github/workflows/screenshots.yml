@@ -69,12 +69,12 @@ jobs:
             xcrun simctl io "$UDID" screenshot "shots/$1.png"
           }
           shoot 01-heute 0 none
-          shoot 02-plan 1 none 0
-          shoot 03-kraft 1 none 1
-          shoot 04-aktivitaeten 1 none 2
+          shoot 02-plan 1 none 1
+          shoot 03-kraft 1 none 2
+          shoot 04-training 1 none 0
           shoot 05-ernaehrung 2 none
           shoot 06-gesundheit 3 none
-          shoot 07-finanzen 4 none
+          shoot 07-mehr 4 none
           shoot 08-schlaf 0 sleep
           shoot 09-lauf 0 workout
           shoot 10-einheit 0 run
@@ -96,10 +96,17 @@ jobs:
           shoot 37-schritte 0 metric-steps
           shoot 38-gewicht 0 metric-weight
           shoot 39-tag 0 day
+          shoot 40-wochenbericht 0 report
+          shoot 41-bestzeiten 0 records
+          shoot 42-wettkampftag 0 raceday
+          shoot 43-zyklus 0 cycle
+          shoot 44-mobility 0 mobility
+          shoot 45-vitalwerte 0 vitals
+          shoot 46-export 0 export
           shoot 12-verletzung 0 injury
           shoot 13-heute-verletzt 0 none
-          shoot 14-plan-verletzt 1 none 0
-          shoot 15-kraft-verletzt 1 none 1
+          shoot 14-plan-verletzt 1 none 1
+          shoot 15-kraft-verletzt 1 none 2
           shoot 16-widgets 0 widgets
           shoot 17-satzpause-vorschau 0 widgets2
           shoot 18-satzpause-app 0 rest

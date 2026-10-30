@@ -507,7 +507,9 @@ enum HealthspanModel {
                                       value: Fmt.num(lbm / (h * h), 1) + " kg/m²", target: inp.female ? "über 14,5" : "über 17", years: r("lean"),
                                       tip: "Fettfreie Masse geteilt durch Größe zum Quadrat. Braucht eine Körperfettwaage in Apple Health."))
         }
-        return Healthspan(chronological: age, formAge: age + res.total, pace: pace, metrics: m, daysOfData: long.days)
+        // Hazard Ratios addieren sich nicht beliebig: mehr als 6 Jahre jünger oder 10 Jahre älter ist nicht belastbar
+        let clamped = max(-6, min(10, res.total))
+        return Healthspan(chronological: age, formAge: max(16, age + clamped), pace: pace, metrics: m, daysOfData: long.days)
     }
 }
 

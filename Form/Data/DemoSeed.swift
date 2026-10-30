@@ -6,6 +6,18 @@ enum DemoSeed {
         let cal = Calendar.current
         let today = cal.startOfDay(for: .now)
 
+        if shot == "cycle" {
+            store.update { $0.profile.sex = .female; $0.profile.name = "Lena" }
+            model.female = true
+        }
+        if store.data.shoes.isEmpty {
+            store.update { d in
+                d.shoes = [Shoe(name: "Pegasus 41", startKm: 410, limitKm: 700, since: cal.addDays(-120, to: today), isDefault: true),
+                           Shoe(name: "Vaporfly 3", startKm: 95, limitKm: 400, since: cal.addDays(-200, to: today))]
+                d.water[JournalBehavior.key(today)] = 1250
+            }
+        }
+
         if store.data.plan == nil {
             var s = PlanSettings()
             s.distance = .half

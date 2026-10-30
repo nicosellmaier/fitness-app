@@ -171,7 +171,7 @@ enum Analytics {
                 contrib.append(RecoveryPart(name: "Temperatur", points: -min(12, 20 * (dev - 0.3)), detail: "+\(Fmt.num(dev, 1)) °C über deinem Schnitt"))
             }
         }
-        let sc = Int(max(1, min(99, score.rounded())))
+        let sc = Int(max(1, min(98, score.rounded())))
         let label: String
         let color: Color
         if sc >= 67 { label = "Bereit für Intensität"; color = Theme.good }
