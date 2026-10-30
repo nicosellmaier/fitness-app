@@ -73,6 +73,11 @@ struct StrengthHomeView: View {
             }
 
             if !store.data.sessions.isEmpty {
+                SectionHeader("Sätze pro Muskel", trailing: "diese Woche")
+                MuscleVolumeCard()
+            }
+
+            if !store.data.sessions.isEmpty {
                 SectionHeader("Verlauf", trailing: "\(store.data.sessions.count) Einheiten")
                 VStack(spacing: 0) {
                     let recent = Array(store.data.sessions.sorted { $0.start > $1.start }.prefix(8))
@@ -313,11 +318,17 @@ struct SessionView: View {
 
     private func setDone(_ i: Int, _ setIndex: Int) {
         guard let s = store.activeSession, let ex = s.exercises[safe: i] else { return }
-        let rest = Double(store.data.profile.restSeconds) * (ExerciseDB.find(ex.exerciseId)?.compound == true ? 1 : 0.6)
+        // Supersatz: Partner mit gleicher Nummer, der noch offene Sätze hat → kurz wechseln
+        let partner = ex.superset.flatMap { g in s.exercises.indices.first { $0 != i && s.exercises[$0].superset == g && s.exercises[$0].sets.contains { !$0.done } } }
+        let rest = Strength.rest(base: store.data.profile.restSeconds, exercise: ExerciseDB.find(ex.exerciseId), repMin: ex.repMin, superset: partner != nil)
         var nextName = ExerciseDB.name(ex.exerciseId)
         var nextSet = "Satz \(setIndex + 2)/\(ex.sets.count)"
         var target = ""
-        if let next = ex.sets[safe: setIndex + 1] {
+        if let p = partner, let pe = s.exercises[safe: p], let open = pe.sets.first(where: { !$0.done }) {
+            nextName = ExerciseDB.name(pe.exerciseId)
+            nextSet = "Supersatz"
+            target = "\(Fmt.kg(open.weight)) kg × \(open.reps)"
+        } else if let next = ex.sets[safe: setIndex + 1] {
             target = "\(Fmt.kg(next.weight)) kg × \(next.reps)"
         } else if let nextEx = s.exercises[safe: i + 1], let first = nextEx.sets.first {
             nextName = ExerciseDB.name(nextEx.exerciseId)
@@ -407,6 +418,12 @@ struct ExerciseCard: View {
                 }
                 if let r = ex.replaced {
                     Badge(text: "ERSATZ FÜR \(ExerciseDB.name(r).uppercased())", color: Theme.sleep)
+                }
+                if let g = ex.superset {
+                    Badge(text: "SUPERSATZ \(["A", "B", "C", "D", "E"][min(4, max(0, g - 1))])", color: Theme.warn)
+                }
+                if !ex.note.isEmpty {
+                    Label(ex.note, systemImage: "note.text").font(.caption).foregroundStyle(Theme.sleep).fixedSize(horizontal: false, vertical: true)
                 }
                 if let last {
                     Text("Letztes Mal: " + Strength.lastSummary(last)).font(.caption).foregroundStyle(Theme.soft)
@@ -781,6 +798,26 @@ struct RoutineEditor: View {
                             Stepper("\(item.sets) Sätze", value: $item.sets, in: 1...8)
                             Stepper("Wdh. von \(item.repMin)", value: $item.repMin, in: 1...item.repMax)
                             Stepper("bis \(item.repMax)", value: $item.repMax, in: item.repMin...60)
+                            TextField("Notiz, z. B. Griff eng, Pause 3 min", text: $item.note)
+                                .font(.caption)
+                            if let idx = routine.items.firstIndex(where: { $0.id == item.id }), idx + 1 < routine.items.count {
+                                let paired = item.superset != nil && item.superset == routine.items[idx + 1].superset
+                                Button {
+                                    if paired {
+                                        routine.items[idx].superset = nil
+                                        routine.items[idx + 1].superset = nil
+                                    } else {
+                                        let g = (routine.items.compactMap(\.superset).max() ?? 0) + 1
+                                        routine.items[idx].superset = g
+                                        routine.items[idx + 1].superset = g
+                                    }
+                                } label: {
+                                    Label(paired ? "Supersatz mit \(ExerciseDB.name(routine.items[idx + 1].exerciseId)) lösen" : "Supersatz mit \(ExerciseDB.name(routine.items[idx + 1].exerciseId))",
+                                          systemImage: paired ? "link.badge.plus" : "link")
+                                        .font(.caption.weight(.semibold)).foregroundStyle(paired ? Theme.warn : Theme.accent)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                         .font(.subheadline)
                     }
@@ -828,4 +865,41 @@ struct RoutineEditor: View {
 
 extension Array {
     subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
+}
+
+
+/// Wochenvolumen je Muskelgruppe gegen den Bereich 10 bis 20 Sätze
+struct MuscleVolumeCard: View {
+    @Environment(DataStore.self) private var store
+
+    var body: some View {
+        let cal = Calendar.current
+        let ws = cal.dateInterval(of: .weekOfYear, for: .now)?.start ?? cal.startOfDay(for: .now)
+        let now = Strength.setsPerMuscle(store.data.sessions, from: ws)
+        let prev = Strength.setsPerMuscle(store.data.sessions.filter { $0.start < ws }, from: cal.date(byAdding: .weekOfYear, value: -1, to: ws) ?? ws)
+        let groups = MuscleGroup.allCases.filter { (now[$0] ?? 0) > 0 || (prev[$0] ?? 0) > 0 }
+        Card {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(groups) { g in
+                    let n = now[g] ?? 0
+                    HStack(spacing: 10) {
+                        Text(g.label).font(.caption.weight(.semibold)).frame(width: 110, alignment: .leading).lineLimit(1)
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Theme.track)
+                                Capsule().fill(Theme.good.opacity(0.18)).frame(width: geo.size.width * (10.0 / 24)).offset(x: geo.size.width * (10.0 / 24))
+                                Capsule().fill(n >= 10 ? (n > 22 ? Theme.warn : Theme.good) : Theme.accent.opacity(0.7))
+                                    .frame(width: geo.size.width * min(1, Double(n) / 24))
+                            }
+                        }
+                        .frame(height: 8)
+                        Text("\(n)").font(.caption.weight(.heavy)).monospacedDigit().frame(width: 24, alignment: .trailing)
+                        Text("(\(prev[g] ?? 0))").font(.caption2).foregroundStyle(Theme.muted).frame(width: 30, alignment: .trailing)
+                    }
+                }
+                Text("Grüner Bereich: 10 bis 20 Sätze pro Woche je Muskel, das ist für die meisten der beste Bereich für Muskelaufbau. In Klammern: letzte Woche.")
+                    .font(.caption2).foregroundStyle(Theme.muted).padding(.top, 2)
+            }
+        }
+    }
 }

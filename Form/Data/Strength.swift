@@ -2,6 +2,28 @@ import Foundation
 import HealthKit
 
 enum Strength {
+    /// Satzpause nach Übungstyp und Wiederholungsbereich
+    static func rest(base: Int, exercise: Exercise?, repMin: Int, superset: Bool) -> Double {
+        if superset { return 20 }   // direkt zur Partnerübung, Pause kommt nach dem Paar
+        guard let e = exercise else { return Double(base) }
+        var f: Double = e.compound ? 1.0 : 0.6
+        if e.primary == .core || e.primary == .calves { f = 0.5 }
+        if repMin <= 5 && e.compound { f = 1.4 }   // schwere Sätze brauchen 3 min und mehr
+        return Double(base) * f
+    }
+
+    /// Sätze pro Muskelgruppe in einem Zeitraum (nur erledigte Sätze)
+    static func setsPerMuscle(_ sessions: [StrengthSession], from: Date) -> [MuscleGroup: Int] {
+        var out: [MuscleGroup: Int] = [:]
+        for s in sessions where s.start >= from {
+            for e in s.exercises {
+                guard let ex = ExerciseDB.find(e.exerciseId) else { continue }
+                out[ex.primary, default: 0] += e.sets.filter(\.done).count
+            }
+        }
+        return out
+    }
+
     /// Geschätztes Maximalgewicht für eine Wiederholung (Epley)
     static func oneRM(_ w: Double, _ reps: Int) -> Double {
         guard w > 0, reps > 0 else { return 0 }
@@ -78,7 +100,8 @@ enum Strength {
             let sug = suggestion(exerciseId: chosen.id, repMin: r.item.repMin, repMax: r.item.repMax, sessions: sessions)
             let sets = (0..<r.item.sets).map { _ in SetEntry(weight: sug.weight, reps: sug.reps) }
             list.append(SessionExercise(exerciseId: chosen.id, repMin: r.item.repMin, repMax: r.item.repMax, sets: sets,
-                                        replaced: chosen.id == r.original.id ? nil : r.original.id))
+                                        replaced: chosen.id == r.original.id ? nil : r.original.id,
+                                        superset: r.item.superset, note: r.item.note))
         }
         return StrengthSession(routineId: routine.id, name: routine.name, start: .now, end: nil, exercises: list)
     }
