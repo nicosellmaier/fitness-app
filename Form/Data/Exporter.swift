@@ -136,7 +136,7 @@ enum Exporter {
             ]
             for (k, v) in lines { row([k, v]) }
             y += 8
-            let inj = store.data.injuries.filter { $0.active || $0.since >= from }
+            let inj = store.data.injuries.filter { $0.active || $0.start >= from }
             if !inj.isEmpty {
                 text("Verletzungen", 14, bold: true)
                 for i in inj { text("• \(i.title), seit \(Fmt.shortDay(i.start))\(i.active ? ", aktiv" : "")", 10) }
