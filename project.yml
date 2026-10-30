@@ -50,12 +50,6 @@ targets:
         com.apple.developer.healthkit.access: []
         com.apple.security.application-groups:
           - group.de.nicosellmaier.form
-        com.apple.developer.icloud-container-identifiers:
-          - iCloud.de.nicosellmaier.form
-        com.apple.developer.icloud-services:
-          - CloudDocuments
-        com.apple.developer.ubiquity-container-identifiers:
-          - iCloud.de.nicosellmaier.form
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.nicosellmaier.form

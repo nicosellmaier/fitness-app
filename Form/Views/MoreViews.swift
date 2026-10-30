@@ -180,7 +180,9 @@ struct BackupView: View {
                                 Text(CloudBackup.isAvailable ? "iCloud aktiv" : "iCloud nicht verfügbar").font(.headline)
                                 Text(CloudBackup.isAvailable
                                      ? (last.map { "Letzte Sicherung: \(Fmt.shortDay($0)), \(Fmt.time($0))" } ?? "Noch keine Sicherung")
-                                     : "Melde dich in den iPhone-Einstellungen bei iCloud an und erlaube iCloud Drive.")
+                                     : FileManager.default.ubiquityIdentityToken == nil
+                                     ? "Melde dich in den iPhone-Einstellungen bei iCloud an und erlaube iCloud Drive."
+                                     : "In diesem Build noch nicht freigeschaltet. Bis dahin: Mehr → Daten exportieren → Komplettes Backup.")
                                     .font(.footnote).foregroundStyle(Theme.soft)
                             }
                         }

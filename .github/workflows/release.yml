@@ -6,6 +6,11 @@ name: TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      icloud:
+        description: "iCloud-Backup einbauen (Container muss im Developer-Portal existieren, siehe docs/TESTFLIGHT.md)"
+        type: boolean
+        default: false
 
 jobs:
   testflight:
@@ -43,6 +48,7 @@ jobs:
       - name: Projekt erzeugen
         run: |
           brew install xcodegen
+          if [ "${{ inputs.icloud }}" = "true" ]; then python3 tools/enable_icloud.py; fi
           xcodegen generate
 
       - name: API-Schlüssel ablegen

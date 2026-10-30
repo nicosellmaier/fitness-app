@@ -96,10 +96,12 @@ Der Fehler steht in GitHub direkt in der Zusammenfassung des Laufs.
 
 Die App sichert ihre Daten in iCloud Drive. Dafür braucht die App-ID die Berechtigung "iCloud" mit dem Container `iCloud.de.nicosellmaier.form`.
 
-Xcode legt den Container beim signierten Build normalerweise selbst an. Schlägt der Release-Workflow mit einem Fehler zu "iCloud" oder "container" fehl:
+Der API-Schlüssel des Workflows darf keine neuen Capabilities anlegen. Deshalb ist iCloud im Release standardmäßig aus. So schaltest du es frei:
 
 1. Öffne developer.apple.com → Certificates, Identifiers & Profiles → Identifiers.
 2. Wähle oben rechts "iCloud Containers" und tippe auf "+".
 3. Beschreibung "Form", Identifier `iCloud.de.nicosellmaier.form`. Speichern.
 4. Wechsle zu "App IDs" → `de.nicosellmaier.form` → Capabilities → iCloud einschalten → "CloudKit" aus, "iCloud Documents" an → den Container zuweisen. Speichern.
-5. Starte den Release-Workflow erneut.
+5. Starte den Release-Workflow unter Actions → TestFlight → Run workflow und setze den Haken bei "iCloud-Backup einbauen".
+
+Ohne diesen Schritt läuft die App normal, nur die Seite "iCloud-Backup" meldet, dass iCloud noch nicht freigeschaltet ist. Export als JSON funktioniert immer.
