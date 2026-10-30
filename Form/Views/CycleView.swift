@@ -70,34 +70,50 @@ struct CycleView: View {
 
     // MARK: Zyklusrad
 
+    private struct Seg: Identifiable {
+        let phase: CyclePhase
+        let from: Int
+        let to: Int
+        var id: String { phase.rawValue }
+        var count: Int { max(0, to - from + 1) }
+    }
+
+    private func segments(_ c: CycleState) -> [Seg] {
+        let ov = c.length - 14
+        return [Seg(phase: .menstrual, from: 1, to: c.periodDays),
+                Seg(phase: .follicular, from: c.periodDays + 1, to: ov - 2),
+                Seg(phase: .ovulation, from: ov - 1, to: ov + 1),
+                Seg(phase: .luteal, from: ov + 2, to: c.length - 4),
+                Seg(phase: .lateLuteal, from: c.length - 3, to: c.length)]
+    }
+
     private func wheel(_ c: CycleState) -> some View {
-        let segs: [(CyclePhase, Int, Int)] = {
-            let ov = c.length - 14
-            return [(.menstrual, 1, c.periodDays), (.follicular, c.periodDays + 1, ov - 2), (.ovulation, ov - 1, ov + 1),
-                    (.luteal, ov + 2, c.length - 4), (.lateLuteal, c.length - 3, c.length)]
-        }()
+        let segs = segments(c)
+        let total = Double(c.length)
+        let pos = Double(min(c.day, c.length) - 1)
         return Card {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Dein Zyklus").font(.headline)
                 GeometryReader { geo in
-                    let w = geo.size.width
+                    let w: CGFloat = geo.size.width
                     ZStack(alignment: .leading) {
                         HStack(spacing: 2) {
-                            ForEach(segs, id: \.0) { s in
-                                RoundedRectangle(cornerRadius: 4).fill(s.0.color.opacity(0.75))
-                                    .frame(width: max(2, w * Double(max(0, s.2 - s.1 + 1)) / Double(c.length) - 2))
+                            ForEach(segs) { s in
+                                let width: CGFloat = w * CGFloat(s.count) / CGFloat(total) - 2
+                                RoundedRectangle(cornerRadius: 4).fill(s.phase.color.opacity(0.75))
+                                    .frame(width: max(2, width))
                             }
                         }
                         Capsule().fill(Theme.text).frame(width: 3, height: 26)
-                            .offset(x: w * Double(min(c.day, c.length) - 1) / Double(c.length) + w / Double(c.length) / 2)
+                            .offset(x: w * CGFloat(pos / total) + w / CGFloat(total) / 2)
                     }
                 }
                 .frame(height: 18)
                 HStack(spacing: 10) {
-                    ForEach(segs, id: \.0) { s in
+                    ForEach(segs) { s in
                         HStack(spacing: 4) {
-                            Circle().fill(s.0.color).frame(width: 7, height: 7)
-                            Text(s.0.label).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.soft)
+                            Circle().fill(s.phase.color).frame(width: 7, height: 7)
+                            Text(s.phase.label).font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.soft)
                         }
                     }
                 }
