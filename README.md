@@ -16,6 +16,8 @@ Eigene iOS-App, die Whoop, Strava, Runna, MyFitnessPal und Finanzguru ersetzt. A
 
 **Training**
 - *Plan*: Trainingsplan aus Ziel, Datum und Zielzeit (5 km bis Ultra). Phasen, Wochenumfang, Paces nach Daniels-Form-Wert. Passt sich täglich an: erledigte und verpasste Läufe, Leistung (Paces werden schneller oder langsamer), Erholung (harte Einheit wird getauscht oder entschärft), Verletzung und Krankheit. Einheiten mit Intervallen und Pace-Warnungen gehen per WorkoutKit an die Trainings-App der Watch.
+- *Laufplan-Vorlagen*: 0 auf 5 km (Gehen und Laufen im Wechsel, 8 Wochen), 5 km schneller, 10 km, Halbmarathon, Marathon
+- *Kraftprogramme*: Einsteiger Ganzkörper, Zuhause mit Kurzhanteln, Beine & Po, Oberkörper/Unterkörper, Push/Pull/Beine, Läufer-Kraft, Kraft kompakt. Mit einem Tipp übernehmen.
 - *Kraft*: Routinen, Satz-Logging mit Vorschlag nach doppelter Progression, Satzpause mit Live Activity und Dynamic Island, Bestwerte, Verlauf pro Übung, Speichern in Apple Health
 - *Aktivitäten*: alle Workouts, automatisch als Ausdauer oder Kraft erkannt. Lauf-Detail wie bei Strava: Route auf der Karte, Splits, Höhenprofil, Herzfrequenz-Zonen, Laufdynamik
 
@@ -39,6 +41,8 @@ Eigene iOS-App, die Whoop, Strava, Runna, MyFitnessPal und Finanzguru ersetzt. A
 - Form-Alter und Tempo des Alterns aus 9 Faktoren mit Hazard Ratios aus großen Studien
 - Journal mit Auswertung, welches Verhalten deine Erholung verändert
 - Wochenziele für Aktivität, Kraft, Schritte und Schlaf
+- Jeder Messwert hat eine Detailseite: 7 Tage bis 1 Jahr, Diagramm zum Antippen, Schnitt, Höchst- und Tiefstwert, Trend, Wochentags-Muster, Erklärung und Tipps
+- Tagesansicht für jeden Tag: woraus sich die Erholung zusammensetzt, Vitalwerte gegen deinen Schnitt, Schlaf, Belastung, Workouts, Essen, Journal
 
 **Schlafplan (wie Rise)**
 - Jeden Tag ideale Schlafens- und Weckzeit: Weckzeit aus erstem Kalendertermin, festen Weckzeiten oder Gewohnheit, Schlafenszeit aus Bedarf, Einschlafdauer und Schlaffenster der inneren Uhr
@@ -59,6 +63,10 @@ Formeln, Studien und Grenzen: [docs/WISSENSCHAFT.md](docs/WISSENSCHAFT.md)
 **Widgets**
 - Erholung (klein, Sperrbildschirm rund, rechteckig, Zeile), Heute (mittel), Trainingswoche (groß)
 - Satzpause als Live Activity im Dynamic Island mit +30 s und Überspringen
+
+### Mehrere Nutzer
+- Jede Person installiert die App über TestFlight auf ihrem eigenen iPhone. Die Daten bleiben auf dem jeweiligen Gerät.
+- Beim ersten Start fragt die App Name, Körperdaten und Ziel ab. Der Finanzen-Tab lässt sich ausblenden.
 
 ## Aufbau
 - `Form/` App (SwiftUI, iOS 17)

@@ -113,7 +113,7 @@ struct MetricDetailView: View {
     }
 
     @ChartContentBuilder
-    private func marks(_ pts: [Point], sel: Point?) -> some ChartContent {
+    private func marks(_ pts: [Point], sel: Point?, floor: Double) -> some ChartContent {
         let unit: Calendar.Component = range > 90 ? .weekOfYear : .day
         ForEach(pts) { p in
             if kind.bars {
@@ -121,7 +121,7 @@ struct MetricDetailView: View {
                     .foregroundStyle(barColor(p).opacity(sel == nil || sel?.id == p.id ? 1 : 0.35))
                     .cornerRadius(3)
             } else {
-                AreaMark(x: .value("Tag", p.date), y: .value(kind.title, p.value))
+                AreaMark(x: .value("Tag", p.date), yStart: .value("Basis", floor), yEnd: .value(kind.title, p.value))
                     .foregroundStyle(LinearGradient(colors: [kind.color.opacity(0.28), kind.color.opacity(0)], startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.catmullRom)
                 LineMark(x: .value("Tag", p.date), y: .value(kind.title, p.value))
@@ -137,7 +137,7 @@ struct MetricDetailView: View {
         let pad = max((hi - lo) * 0.15, kind == .temp ? 0.1 : 1)
         let domain: ClosedRange<Double> = kind.bars ? 0...(hi * 1.1 + 0.001) : (lo - pad)...(hi + pad)
         return Chart {
-            marks(pts, sel: sel)
+            marks(pts, sel: sel, floor: domain.lowerBound)
             RuleMark(y: .value("Schnitt", mean))
                 .foregroundStyle(Theme.soft.opacity(0.6))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -154,6 +154,7 @@ struct MetricDetailView: View {
             }
         }
         .chartYScale(domain: domain)
+        .chartPlotStyle { $0.clipped() }
         .chartXSelection(value: $selected)
         .sensoryFeedback(.selection, trigger: sel?.id)
         .chartXAxis {
