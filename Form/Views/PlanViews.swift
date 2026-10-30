@@ -67,6 +67,7 @@ struct PlanOverview: View {
     @State private var sending = false
     @State private var sendResult: String?
     @State private var confirmDelete = false
+    @State private var showPause = false
 
     var body: some View {
         if let plan = store.data.plan {
@@ -115,6 +116,30 @@ struct PlanOverview: View {
             if let last = plan.log.first, Calendar.current.dateComponents([.day], from: last.date, to: .now).day ?? 9 < 3 {
                 Hint(icon: "arrow.triangle.2.circlepath", title: "Plan live angepasst", text: last.text, color: Theme.sleep)
             }
+            if let p = store.data.planPausedUntil, p >= today {
+                Button { showPause = true } label: {
+                    Hint(icon: "pause.circle.fill", title: "Plan pausiert bis \(Fmt.shortDay(p))", text: "Alle Läufe bis dahin sind Ruhetage. Tippen zum Beenden.", color: Theme.warn)
+                }
+                .buttonStyle(.press)
+            }
+            if plan.weeksLeft <= 3 {
+                NavigationLink { RaceDayView() } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "flag.checkered").font(.title3.weight(.bold)).foregroundStyle(Theme.bg)
+                            .frame(width: 44, height: 44).background(Theme.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Wettkampftag planen").font(.subheadline.weight(.bold))
+                            Text("Zwischenzeiten, Pacing für die Watch, Ablauf, Verpflegung").font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Spacer()
+                        Chevron()
+                    }
+                    .padding(14)
+                    .background(CardBackground(radius: 20, tint: Theme.accent))
+                }
+                .buttonStyle(.press)
+            }
+            RecordsCard()
 
             if WatchExport.isSupported {
                 Button {
@@ -169,6 +194,20 @@ struct PlanOverview: View {
                 }
             }
 
+            SectionHeader("Mehr")
+            VStack(spacing: 0) {
+                NavigationLink { ShoesView() } label: { moreRow("Schuhe", "shoe.fill", shoeNote) }.buttonStyle(.press)
+                Divider().overlay(Theme.line)
+                NavigationLink { RecordsView() } label: { moreRow("Bestzeiten", "trophy.fill", nil) }.buttonStyle(.press)
+                Divider().overlay(Theme.line)
+                NavigationLink { RaceDayView() } label: { moreRow("Wettkampftag", "flag.checkered", nil) }.buttonStyle(.press)
+                Divider().overlay(Theme.line)
+                Button { showPause = true } label: { moreRow("Plan pausieren", "pause.circle", "Urlaub, Prüfungen") }.buttonStyle(.press)
+            }
+            .padding(.horizontal, 16)
+            .background(CardBackground(radius: 20))
+            .sheet(isPresented: $showPause) { PlanPauseSheet() }
+
             HStack(spacing: 8) {
                 Button { showSetup = true } label: {
                     Text("Plan ändern").font(.subheadline.weight(.bold)).frame(maxWidth: .infinity).padding(.vertical, 12)
@@ -184,6 +223,23 @@ struct PlanOverview: View {
         .confirmationDialog("Plan wirklich löschen?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Löschen", role: .destructive) { store.update { $0.plan = nil } }
         }
+    }
+
+    private var shoeNote: String? {
+        let worn = store.data.shoes.filter { !$0.retired && store.shoeKm($0, workouts: model.workouts) >= $0.limitKm * 0.85 }
+        return worn.isEmpty ? (store.data.shoes.isEmpty ? "Kilometer zählen" : nil) : "\(worn.first!.name) fast durch"
+    }
+
+    private func moreRow(_ t: String, _ icon: String, _ sub: String?) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon).font(.subheadline.weight(.bold)).foregroundStyle(Theme.accent).frame(width: 26)
+            Text(t).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
+            Spacer()
+            if let sub { Text(sub).font(.caption).foregroundStyle(sub.contains("durch") ? Theme.warn : Theme.muted) }
+            Chevron()
+        }
+        .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 
     private func mini(_ t: String, _ v: String) -> some View {
@@ -373,6 +429,8 @@ struct RunDetailView: View {
     let runId: UUID
     @State private var showPreview = false
     @State private var authorized = false
+    @State private var strides = false
+    @AppStorage("treadmill") private var treadmill = false
 
     var body: some View {
         if let plan = store.data.plan, let run = plan.runs.first(where: { $0.id == runId }) {
@@ -385,6 +443,8 @@ struct RunDetailView: View {
     private func detail(_ plan: TrainingPlan, _ run: PlannedRun) -> some View {
         let p = plan.paces
         let km = p.totalMeters(run.structure) / 1000
+        let structure = strides ? run.structure.withStrides() : run.structure
+        let nextQuality = plan.runs.first { $0.date > run.date && $0.date <= Calendar.current.addDays(2, to: run.date) && $0.type.isQuality }
         return ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -401,8 +461,44 @@ struct RunDetailView: View {
                         StatTile(title: "Dauer", value: Fmt.clock(p.totalSeconds(run.structure)))
                         StatTile(title: "Ø Pace", value: km > 0 ? Fmt.pace(p.totalSeconds(run.structure) / km) : "–")
                     }
-                    StructureBar(structure: run.structure, paces: p)
-                    Card { StepList(structure: run.structure, paces: p) }
+                    StructureBar(structure: structure, paces: p)
+                    Card { StepList(structure: structure, paces: p) }
+                }
+                if run.status == .planned && run.type == .easy {
+                    Card {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle(isOn: $strides.animation(.snappy)) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Mit Steigerungen").font(.subheadline.weight(.bold))
+                                    Text(nextQuality != nil ? "Morgen ist \(nextQuality!.title): 5 × 20 s flott am Ende machen die Beine wach." : "5 × 20 s flott, 60 s traben. Schult Laufökonomie, kostet keine Erholung.")
+                                        .font(.caption).foregroundStyle(Theme.muted)
+                                }
+                            }
+                            .tint(Theme.accent)
+                        }
+                    }
+                }
+                if run.status == .planned && run.type != .rest && run.type != .cross {
+                    Card {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle(isOn: $treadmill) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Auf dem Laufband").font(.subheadline.weight(.bold))
+                                    Text("Zeigt km/h statt Pace. Steigung auf 1 % stellen, das ersetzt den Luftwiderstand.").font(.caption).foregroundStyle(Theme.muted)
+                                }
+                            }
+                            .tint(Theme.accent)
+                            if treadmill {
+                                ForEach(Array(Set(structure.blocks.map(\.work.zone) + [structure.warmup?.zone, structure.cooldown?.zone].compactMap { $0 })).sorted { $0.rawValue < $1.rawValue }, id: \.self) { z in
+                                    HStack {
+                                        Text(z.label).font(.footnote)
+                                        Spacer()
+                                        Text(Fmt.num(Treadmill.kmh(p.sec(z)), 1) + " km/h").font(.footnote.weight(.bold)).monospacedDigit()
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 if run.status == .done {
                     doneCard(run, p)
@@ -435,7 +531,14 @@ struct RunDetailView: View {
         .screenBackground()
         .navigationTitle(run.title)
         .navigationBarTitleDisplayMode(.inline)
-        .workoutPreview(WatchExport.workoutPlan(for: run, paces: p), isPresented: $showPreview)
+        .workoutPreview(WatchExport.workoutPlan(for: strides ? stridesRun(run) : run, paces: p), isPresented: $showPreview)
+    }
+
+    private func stridesRun(_ r: PlannedRun) -> PlannedRun {
+        var x = r
+        x.structure = r.structure.withStrides()
+        x.title = r.title + " + Steigerungen"
+        return x
     }
 
     private func doneCard(_ run: PlannedRun, _ p: Paces) -> some View {

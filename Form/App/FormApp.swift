@@ -115,6 +115,7 @@ struct RootView: View {
         .onChange(of: store.data.sleepPrefs) { _, _ in afterChange() }
         .onChange(of: store.data.profile.bedtimeReminder) { _, _ in afterChange() }
         .onChange(of: store.data.reminders) { _, _ in afterChange() }
+        .onChange(of: store.data.planPausedUntil) { _, _ in afterChange() }
     }
 
     /// Health-Daten laden, Plan live anpassen, Widgets und Erinnerungen aktualisieren
@@ -152,7 +153,8 @@ struct RootView: View {
             let before = plan.log.count
             let snapshot = try? JSONEncoder().encode(plan.runs)
             PlanAdapter.adapt(&plan, workouts: model.workouts, recovery: model.recoveryToday, restrictions: store.restrictions,
-                              hrvLow: model.hrvTrend?.state == .below, easeReason: model.cycleEaseReason)
+                              hrvLow: model.hrvTrend?.state == .below, easeReason: model.cycleEaseReason,
+                              pausedUntil: store.data.planPausedUntil)
             if plan.log.count != before || (try? JSONEncoder().encode(plan.runs)) != snapshot || plan.vdot != store.data.plan?.vdot {
                 let p = plan
                 store.update { $0.plan = p }

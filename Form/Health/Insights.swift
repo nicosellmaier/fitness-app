@@ -84,7 +84,9 @@ enum Strain {
         let typical: Double = past.isEmpty ? 0 : past[past.count / 2]
         for s in sessions where cal.isDate(s.start, inSameDayAs: day) && s.volume > 0 {
             let rel: Double = typical > 0 ? s.volume / typical : 1
-            out.muscular += 40 * min(2, max(0.3, rel))
+            // RPE skaliert: 7 ist normal, 10 fast das Doppelte, 4 die Hälfte
+            let rpeFactor: Double = s.rpe.map { max(0.5, min(1.6, 1 + (Double($0) - 7) * 0.18)) } ?? 1
+            out.muscular += 40 * min(2, max(0.3, rel)) * rpeFactor
         }
         return out
     }

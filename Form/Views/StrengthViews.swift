@@ -523,6 +523,11 @@ struct SessionSummaryView: View {
     @Environment(\.dismiss) private var dismiss
     let session: StrengthSession
 
+    private var rpeBinding: Binding<Int?> {
+        Binding(get: { store.data.sessions.first { $0.id == session.id }?.rpe ?? session.rpe },
+                set: { v in store.update { d in if let i = d.sessions.firstIndex(where: { $0.id == session.id }) { d.sessions[i].rpe = v } } })
+    }
+
     var body: some View {
         let records = Strength.records(in: session, history: store.data.sessions)
         NavigationStack {
@@ -543,6 +548,7 @@ struct SessionSummaryView: View {
                                  text: "Geschätztes Maximum \(Fmt.num(r.oneRM)) kg, vorher \(Fmt.num(r.previous)) kg.", color: Theme.accent)
                         }
                     }
+                    Card { RPEPicker(value: rpeBinding) }
                     SectionHeader("Nächstes Mal")
                     ForEach(session.exercises) { e in
                         let sug = Strength.suggestion(exerciseId: e.exerciseId, repMin: e.repMin, repMax: e.repMax, sessions: store.data.sessions)
@@ -578,6 +584,8 @@ struct SessionDetailView: View {
                     StatTile(title: "Sätze", value: "\(session.doneSets)")
                     StatTile(title: "Volumen", value: Fmt.num(session.volume / 1000, 2), unit: "t")
                 }
+                Card { RPEPicker(value: Binding(get: { store.data.sessions.first { $0.id == session.id }?.rpe },
+                                                set: { v in store.update { d in if let i = d.sessions.firstIndex(where: { $0.id == session.id }) { d.sessions[i].rpe = v } } })) }
                 ForEach(session.exercises) { e in
                     Card {
                         VStack(alignment: .leading, spacing: 6) {

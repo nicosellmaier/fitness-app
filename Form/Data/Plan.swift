@@ -713,7 +713,7 @@ enum PlanAdapter {
 
     @discardableResult
     static func adapt(_ plan: inout TrainingPlan, workouts: [WorkoutItem], recovery: Recovery?, restrictions: Restrictions,
-                      hrvLow: Bool = false, easeReason: String? = nil, today: Date = .now) -> [String] {
+                      hrvLow: Bool = false, easeReason: String? = nil, pausedUntil: Date? = nil, today: Date = .now) -> [String] {
         var notes: [String] = []
         let todayStart = cal.startOfDay(for: today)
         let runsDone = workouts.filter { $0.activity == .running }
@@ -760,6 +760,24 @@ enum PlanAdapter {
                 let old = plan.vdot
                 plan.vdot = max(old - 0.4, plan.settings.startVDOT - 6)
                 notes.append("\(r.title) war zäh: Paces etwas entschärft (Form \(Fmt.num(old, 1)) → \(Fmt.num(plan.vdot, 1)))")
+            }
+        }
+
+        // 2b. Pause (Urlaub): Läufe bis zum Datum werden Ruhetage, danach wieder hergestellt
+        for i in plan.runs.indices where plan.runs[i].date >= todayStart && plan.runs[i].type != .race {
+            let r = plan.runs[i]
+            let paused = pausedUntil.map { r.date <= $0 } ?? false
+            if r.adjustKind == "pause" && !paused, let o = r.original {
+                plan.runs[i].type = o.type; plan.runs[i].title = o.title; plan.runs[i].purpose = o.purpose; plan.runs[i].structure = o.structure
+                plan.runs[i].adjusted = nil; plan.runs[i].adjustKind = nil; plan.runs[i].original = nil
+            } else if paused && r.adjustKind == nil && r.status == .planned && r.type != .rest {
+                plan.runs[i].original = OriginalRun(type: r.type, title: r.title, purpose: r.purpose, structure: r.structure, date: r.date)
+                plan.runs[i].type = .rest
+                plan.runs[i].title = "Pause"
+                plan.runs[i].purpose = "Plan pausiert. Bewegung nach Lust und Laune, kein Pflichtprogramm."
+                plan.runs[i].structure = RunStructure()
+                plan.runs[i].adjusted = "Plan pausiert"
+                plan.runs[i].adjustKind = "pause"
             }
         }
 

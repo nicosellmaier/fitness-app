@@ -332,6 +332,7 @@ struct WorkoutDetailView: View {
 
                 if let d = detail, d.route.count > 1 { RouteMap(route: d.route) }
                 stats
+                WorkoutNoteCard(item: item)
                 if let d = detail {
                     if d.profile.count > 3 { profileCard(d) }
                     if !d.hr.isEmpty { hrCard(d) }
